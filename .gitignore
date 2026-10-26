@@ -1,0 +1,134 @@
+# ==========================================
+# MAISON RESTAURANT — GITIGNORE
+# Backend: Django + DRF + PostgreSQL
+# Frontend: React
+# Mobile: Flutter
+# ==========================================
+
+
+# ==========================================
+# 1. ENVIRONMENT VARIABLES / SECRETS
+# ==========================================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+
+
+# ==========================================
+# 2. PYTHON / DJANGO
+# ==========================================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Local databases
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3
+
+# Uploaded files
+media/
+
+# Django collectstatic output
+staticfiles/
+
+
+# ==========================================
+# 3. REACT / NODE.JS
+# ==========================================
+
+node_modules/
+
+# Build results
+dist/
+build/
+
+# Testing
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# ==========================================
+# 4. FLUTTER / DART
+# ==========================================
+
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Flutter generated build files
+**/flutter_*.png
+**/linked_*.ds
+**/unlinked.ds
+**/app.dill
+
+# Android
+.gradle/
+local.properties
+*.keystore
+*.jks
+
+# iOS
+Pods/
+.symlinks/
+Generated.xcconfig
+flutter_export_environment.sh
+
+
+# ==========================================
+# 5. IDE / EDITORS
+# ==========================================
+
+.idea/
+.vscode/
+*.iml
+
+*.swp
+*.swo
+*~
+
+
+# ==========================================
+# 6. OS FILES
+# ==========================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ==========================================
+# 7. TEMPORARY FILES
+# ==========================================
+
+*.log
+*.tmp
+*.temp
+
+.cache/
