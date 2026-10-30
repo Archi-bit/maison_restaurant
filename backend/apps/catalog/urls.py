@@ -1,12 +1,9 @@
-from rest_framework import routers
-from .views import CategoryListView, DishDetailView, DishListView
-from django.urls import path, include
+from django.urls import path
 
-router = routers.DefaultRouter()
+from .views import CategoryListView, DishDetailView, DishListView
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('categories/', CategoryListView.as_view()),
-    path('dishes/', DishListView.as_view()),
-    path('dishes/<slug:slug>/', DishDetailView.as_view()),
+    path("categories/", CategoryListView.as_view(), name="category-list"),
+    path("dishes/", DishListView.as_view(), name="dish-list"),
+    path("dishes/<slug:slug>/", DishDetailView.as_view(), name="dish-detail"),
 ]
