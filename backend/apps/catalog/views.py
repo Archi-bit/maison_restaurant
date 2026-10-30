@@ -1,8 +1,11 @@
 from rest_framework import generics
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from .serializers import * 
 from .models import *
 from .pagination import *
+from drf_spectacular.utils import (OpenApiParameter, extend_schema, extend_schema_view)
+
+
 
 
 class CategoryListView(generics.ListAPIView):
@@ -11,6 +14,29 @@ class CategoryListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Category.objects.filter(is_active=True).order_by("sort_order", "id")
+
+
+@extend_schema_view(
+    get=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='search',
+                type=str,
+                description='Поиск блюда по названию',
+            ),
+            OpenApiParameter(
+                name='category',
+                type=str,
+                description='Slug категории',
+            ),
+            OpenApiParameter(
+                name='featured',
+                type=bool,
+                description='Только рекомендуемые блюда: true/false',
+            ),
+        ],
+    )
+)
 
 
 class DishListView(generics.ListAPIView):
@@ -38,12 +64,8 @@ class DishListView(generics.ListAPIView):
             elif param_lower == "false":
                 queryset = queryset.filter(is_featured=False)
             else:
-                raise ValidationError(
-                    {
-                        "featured": (
-                            "Некорректное значение. Ожидается true или false."
-                        )
-                    }
+                raise DRFValidationError(
+                    {"featured": "Некорректное значение. Ожидается true или false."}
                 )
 
         return queryset

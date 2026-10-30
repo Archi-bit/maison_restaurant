@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'drf_spectacular',
+    'corsheaders',
 
     'apps.catalog',
     'apps.cart',
@@ -52,12 +54,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -164,3 +167,16 @@ SPECTACULAR_SETTINGS = {
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+
+CORS_ALLOW_HEADERS = (
+    *default_headers,
+    'x-cart-token',
+)
+
+CORS_URLS_REGEX = r'^/api/'
