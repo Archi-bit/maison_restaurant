@@ -4,9 +4,11 @@ from .serializers import *
 from .models import *
 from .pagination import *
 
+
 class CategoryListView(generics.ListAPIView):
     serializer_class = CategorySerializer
     pagination_class = None
+
     def get_queryset(self):
         return Category.objects.filter(is_active=True).order_by("sort_order", "id")
 
@@ -18,7 +20,7 @@ class DishListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Dish.objects.filter(
             is_active=True, category__is_active=True
-        ).select_related("category")
+        ).select_related("category").order_by("sort_order", "id")
 
         search_query = self.request.query_params.get("search")
         if search_query:
@@ -37,10 +39,14 @@ class DishListView(generics.ListAPIView):
                 queryset = queryset.filter(is_featured=False)
             else:
                 raise ValidationError(
-                    {"featured": "Некорректное значение. Ожидается true или false."}
+                    {
+                        "featured": (
+                            "Некорректное значение. Ожидается true или false."
+                        )
+                    }
                 )
 
-        return queryset.order_by("sort_order", "id")
+        return queryset
 
 
 class DishDetailView(generics.RetrieveAPIView):
