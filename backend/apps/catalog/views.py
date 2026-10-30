@@ -1,6 +1,7 @@
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
-from .serializer import *
+from .serializers import * 
+from .models import *
 from .pagination import *
 
 class CategoryListView(generics.ListAPIView):
