@@ -3,8 +3,6 @@ from django.db.models import CheckConstraint, Q
 from django.core.exceptions import ValidationError
 
 
-class Catalog(models.Model):
-    title = models.CharField(max_length=155)
 
 
 class Category(models.Model):
