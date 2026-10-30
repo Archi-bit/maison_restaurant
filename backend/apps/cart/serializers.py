@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import Cart, CartItem
 from .services import calculate_cart_totals
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 
 
@@ -16,6 +18,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = ('id', 'dish_id', 'name', 'image', 'quantity', 'unit_price', 'line_total')
         read_only_fields = fields
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_line_total(self, obj):
         total = obj.dish.price * obj.quantity
         return f'{total:.2f}'
@@ -41,16 +44,20 @@ class CartSerializer(serializers.ModelSerializer):
             self._totals_cache[obj.pk] = calculate_cart_totals(obj)
 
         return self._totals_cache[obj.pk]
-
+    
+    @extend_schema_field(OpenApiTypes.INT)
     def get_items_count(self, obj):
         return self._get_totals(obj)['items_count']
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_subtotal(self, obj):
         return f"{self._get_totals(obj)['subtotal']:.2f}"
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_total(self, obj):
         return f"{self._get_totals(obj)['total']:.2f}"
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_currency(self, obj):
         return 'KGS'
 
