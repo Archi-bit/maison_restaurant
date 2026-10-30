@@ -1,9 +1,8 @@
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
-
-from .models import Category, Dish
-from .pagination import DishPagination
-from .serializers import CategorySerializer, DishDetailSerializer, DishListSerializer
+from .serializers import * 
+from .models import *
+from .pagination import *
 
 
 class CategoryListView(generics.ListAPIView):
