@@ -7,9 +7,11 @@ from drf_spectacular.utils import (OpenApiParameter, extend_schema, extend_schem
 
 
 
+
 class CategoryListView(generics.ListAPIView):
     serializer_class = CategorySerializer
     pagination_class = None
+
     def get_queryset(self):
         return Category.objects.filter(is_active=True).order_by("sort_order", "id")
 
@@ -44,7 +46,7 @@ class DishListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Dish.objects.filter(
             is_active=True, category__is_active=True
-        ).select_related("category")
+        ).select_related("category").order_by("sort_order", "id")
 
         search_query = self.request.query_params.get("search")
         if search_query:
@@ -66,7 +68,7 @@ class DishListView(generics.ListAPIView):
                     {"featured": "Некорректное значение. Ожидается true или false."}
                 )
 
-        return queryset.order_by("sort_order", "id")
+        return queryset
 
 
 class DishDetailView(generics.RetrieveAPIView):
