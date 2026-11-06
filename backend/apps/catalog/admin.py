@@ -1,10 +1,7 @@
 from django.contrib import admin
-from .models import Catalog, Dish, Category
+from .models import Dish, Category
 
 
-@admin.register(Catalog)
-class MenuAdmin(admin.ModelAdmin):
-    list_display = ('title', )
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
