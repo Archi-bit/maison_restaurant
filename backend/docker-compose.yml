@@ -1,40 +1,53 @@
-version: '3'
-
 services:
 
   web:
     build: .
+    env_file:
+      - .env
+    environment:
+      # Inside Docker, 127.0.0.1 would refer to web itself, not PostgreSQL.
+      DB_HOST: db
+      DB_PORT: "5432"
+      DEBUG: ${DEBUG:-False}
     command: >
-      bash -c "python manage.py collectstatic --noinput && python manage.py makemigrations && python manage.py migrate && gunicorn -b 0.0.0.0:8000 mysite.wsgi:application"
+      sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && exec gunicorn --bind 0.0.0.0:8000 config.wsgi:application"
     volumes:
-      - .:/app
-      - /home/ubuntu/maison_restaurant/backend/staticfiles:/app/static
-      - media_volume:/app/media
-    ports:
-      - "8000:8000"
+      - static_volume:/app/staticfiles
+      # Use the existing local images; select media_volume if it holds server uploads.
+      - ${MEDIA_SOURCE:-./media}:/app/media
+    expose:
+      - "8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:17
     restart: always
     environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in .env}
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   nginx:
     build: ./nginx
     ports:
       - "80:80"
     volumes:
-      - /home/ubuntu/maison_restaurant/backend/staticfiles:/app/static
-      - media_volume:/app/media
+      - static_volume:/app/staticfiles:ro
+      - ${MEDIA_SOURCE:-./media}:/app/media:ro
     depends_on:
       - web
 
 volumes:
   postgres_data:
   media_volume:
+  static_volume:
