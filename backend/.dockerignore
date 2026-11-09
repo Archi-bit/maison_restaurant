@@ -33,3 +33,5 @@ media
 staticfiles
 .DS_Store
 Thumbs.db
+certbot/
+nginx/
