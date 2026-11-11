@@ -261,6 +261,7 @@ class PasswordResetTests(APITestCase):
             fields = self.confirmation_fields()
             for invalid in (
                 {"uid": "!"},
+                {"uid": "_w"},
                 {"token": "invalid"},
                 {"new_password_confirm": "different"},
                 {"new_password": "123", "new_password_confirm": "123"},

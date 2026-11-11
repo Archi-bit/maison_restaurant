@@ -123,7 +123,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
             user = user_model.objects.select_for_update(of=("self",)).get(
                 pk=user_id, is_active=True, employee_profile__isnull=False
             )
-        except (ValueError, OverflowError, DjangoValidationError, user_model.DoesNotExist):
+        except (ValueError, OverflowError, UnicodeDecodeError, DjangoValidationError, user_model.DoesNotExist):
             raise invalid_link from None
 
         if not default_token_generator.check_token(user, self.validated_data["token"]):
