@@ -1,6 +1,10 @@
 """Общие помощники для тестов."""
 from datetime import time, timedelta
 
+from django.apps import apps
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
 from apps.reservations.services.availability import now_local
 
 
@@ -21,6 +25,23 @@ def public_data(**overrides):
     return data
 
 
-# Если в проекте можно создать staff.EmployeeProfile в тестах — подставь сюда
-# реального сотрудника, чтобы проверять created_by / responsible_employee по-настоящему.
-ACTOR = None
+def make_actor(username="waiter"):
+    """Реальный staff.EmployeeProfile (без заглушек).
+
+    ПРОВЕРИТЬ ПОСЛЕ ГОТОВНОСТИ МОДУЛЯ STAFF: если у EmployeeProfile есть обязательные поля
+    (роль, телефон и т.п.) или профиль создаётся сигналом/другой фабрикой — поправить только
+    эту функцию, остальные тесты от неё зависят.
+    """
+    user = get_user_model().objects.create_user(username=username, password="pass12345")
+    profile_model = apps.get_model("staff", "EmployeeProfile")
+    profile, _ = profile_model.objects.get_or_create(user=user)
+    return profile
+
+
+class ActorTestCase(TestCase):
+    """База для тестов: self.actor — настоящий EmployeeProfile."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.actor = make_actor()

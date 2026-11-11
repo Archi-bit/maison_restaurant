@@ -1,5 +1,11 @@
+from datetime import datetime, time
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+# Время работы ресторана. Единый источник для моделей, сервисов и CheckConstraint.
+OPEN_TIME = time(12, 0)
+CLOSE_TIME = time(23, 0)
 
 
 class RestaurantTable(models.Model):
@@ -98,19 +104,37 @@ class Reservation(models.Model):
             models.Index(fields=["table", "date"]),
         ]
         constraints = [
+            # Django 6.x: параметр называется condition (check удалён в 6.0).
             models.CheckConstraint(
-                check=models.Q(guests_count__gte=1, guests_count__lte=6),
+                condition=models.Q(guests_count__gte=1, guests_count__lte=6),
                 name="reservation_guests_count_1_6",
             ),
             models.CheckConstraint(
-                check=models.Q(end_time__gt=models.F("start_time")),
+                condition=models.Q(end_time__gt=models.F("start_time")),
                 name="reservation_end_after_start",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(start_time__gte=OPEN_TIME, end_time__lte=CLOSE_TIME),
+                name="reservation_within_working_hours",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=["pending", "confirmed", "arrived", "cancelled"]),
+                name="reservation_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(source__in=["website", "phone", "walk_in"]),
+                name="reservation_source_valid",
             ),
         ]
 
     @property
-    def number(self):
+    def duration_minutes(self):
+        start = datetime.combine(self.date, self.start_time)
+        end = datetime.combine(self.date, self.end_time)
+        return int((end - start).total_seconds() // 60)
 
+    @property
+    def number(self):
         return f"B-{self.pk:03d}" if self.pk else ""
 
     def __str__(self):

@@ -2,19 +2,18 @@ from io import StringIO
 
 from django.core.management import call_command
 from django.db.models import Sum
-from django.test import TestCase
 
 from apps.reservations.models import Reservation, RestaurantTable
 from apps.reservations.services import assign_table, create_public_reservation
 
-from . import ACTOR, public_data
+from . import ActorTestCase, public_data
 
 
 def seed():
     call_command("seed_restaurant_tables", stdout=StringIO())
 
 
-class SeedTests(TestCase):
+class SeedTests(ActorTestCase):
     def test_creates_12_tables_40_seats(self):
         seed()
         self.assertEqual(RestaurantTable.objects.count(), 12)
@@ -32,7 +31,7 @@ class SeedTests(TestCase):
     def test_rerun_keeps_reservations(self):
         seed()
         r = create_public_reservation(validated_data=public_data())
-        assign_table(reservation=r, table=RestaurantTable.objects.get(code="T05"), actor=ACTOR)
+        assign_table(reservation=r, table=RestaurantTable.objects.get(code="T05"), actor=self.actor)
         seed()
         r.refresh_from_db()
         self.assertEqual(Reservation.objects.count(), 1)

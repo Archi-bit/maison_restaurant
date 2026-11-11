@@ -10,11 +10,9 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
-from ..models import Reservation, ReservationHistory, RestaurantTable
+from ..models import CLOSE_TIME, OPEN_TIME, Reservation, ReservationHistory, RestaurantTable
 
 TZ = ZoneInfo("Asia/Bishkek")
-OPEN_TIME = dtime(12, 0)
-CLOSE_TIME = dtime(23, 0)
 DEFAULT_DURATION_MINUTES = 120
 MIN_GUESTS = 1
 MAX_GUESTS = 6
@@ -42,7 +40,20 @@ def now_local():
     return timezone.now().astimezone(TZ)
 
 
+def minutes_between(start_time, end_time):
+    day = date_cls(2000, 1, 1)
+    return int((datetime.combine(day, end_time) - datetime.combine(day, start_time)).total_seconds() // 60)
+
+
+def validate_duration(duration_minutes):
+    if isinstance(duration_minutes, bool) or not isinstance(duration_minutes, int) or duration_minutes <= 0:
+        raise ReservationBusinessError(
+            "invalid_duration", "Продолжительность должна быть целым числом минут больше нуля"
+        )
+
+
 def calc_end_time(start_time, duration_minutes=DEFAULT_DURATION_MINUTES):
+    validate_duration(duration_minutes)
     dummy_day = date_cls(2000, 1, 1)
     start_dt = datetime.combine(dummy_day, start_time)
     end_dt = start_dt + timedelta(minutes=duration_minutes)

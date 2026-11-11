@@ -11,6 +11,9 @@ from .availability import (
     calc_end_time,
     ensure_table_available,
     lock_table,
+    minutes_between,
+    now_local,
+    validate_duration,
     validate_visit_window,
 )
 
@@ -34,7 +37,10 @@ EDITABLE_STATUSES = (Status.PENDING, Status.CONFIRMED)
 
 
 def _require(data, fields):
-    missing = [f for f in fields if data.get(f) in (None, "")]
+    def _empty(value):
+        return value is None or (isinstance(value, str) and not value.strip())
+
+    missing = [f for f in fields if _empty(data.get(f))]
     if missing:
         raise ReservationBusinessError(
             "missing_fields", f"Не заполнены обязательные поля: {', '.join(missing)}"
@@ -92,12 +98,24 @@ def create_staff_reservation(*, validated_data, actor):
     date = validated_data["date"]
     start_time = validated_data["start_time"]
     guests_count = validated_data["guests_count"]
-    end_time = validated_data.get("end_time") or calc_end_time(
-        start_time, validated_data.get("duration_minutes") or DEFAULT_DURATION_MINUTES
-    )
+    duration = validated_data.get("duration_minutes")
+    if duration is not None:
+        validate_duration(duration)
+    end_time = validated_data.get("end_time")
+    if end_time is None:
+        end_time = calc_end_time(start_time, duration or DEFAULT_DURATION_MINUTES)
+    elif duration is not None and minutes_between(start_time, end_time) != duration:
+        raise ReservationBusinessError(
+            "invalid_duration", "end_time и duration_minutes не согласованы между собой"
+        )
 
     # walk_in — гость уже пришёл, его время начала может быть «прямо сейчас»,
-    # поэтому проверку «в будущем» для него пропускаем (согласовать с Team Lead).
+    # поэтому проверку «в будущем» для него пропускаем (согласовать с Team Lead),
+    # но дата обязана быть сегодняшней.
+    if source == Source.WALK_IN and date != now_local().date():
+        raise ReservationBusinessError(
+            "invalid_walk_in_date", "Гость без брони может быть записан только на сегодня"
+        )
     validate_visit_window(
         date=date,
         start_time=start_time,
@@ -156,6 +174,10 @@ def update_reservation(*, reservation, validated_data, actor):
         raise ReservationBusinessError(
             "field_not_allowed", f"Эти поля менять нельзя: {', '.join(sorted(unknown))}"
         )
+
+    for field in ("guest_name", "phone"):
+        if field in data and not str(data[field] or "").strip():
+            raise ReservationBusinessError("missing_fields", f"Поле {field} не может быть пустым")
 
     reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
     if reservation.status not in EDITABLE_STATUSES:
