@@ -7,6 +7,7 @@ paths:
   /api/v1/cart/:
     get:
       operationId: v1_cart_retrieve
+      summary: Получить гостевую корзину
       parameters:
       - in: header
         name: X-Cart-Token
@@ -25,8 +26,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cart'
           description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
     post:
       operationId: v1_cart_create
+      summary: Создать гостевую корзину
       tags:
       - v1
       security:
@@ -41,6 +55,7 @@ paths:
   /api/v1/cart/items/:
     post:
       operationId: v1_cart_items_create
+      summary: Добавить блюдо в корзину
       parameters:
       - in: header
         name: X-Cart-Token
@@ -77,9 +92,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cart'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НеверноеКоличество:
+                  value:
+                    quantity:
+                    - Ensure this value is greater than or equal to 1.
+                  summary: Неверное количество
+          description: Неверное количество либо недоступное блюдо.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПозицияНеНайдена:
+                  value:
+                    detail: Позиция корзины не найдена.
+                  summary: Позиция не найдена
+          description: Блюдо или позиция корзины не найдены (в том числе в другой
+            корзине).
   /api/v1/cart/items/{id}/:
     patch:
       operationId: v1_cart_items_partial_update
+      summary: Изменить количество блюда
       parameters:
       - in: header
         name: X-Cart-Token
@@ -114,8 +168,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cart'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НеверноеКоличество:
+                  value:
+                    quantity:
+                    - Ensure this value is greater than or equal to 1.
+                  summary: Неверное количество
+          description: Неверное количество либо недоступное блюдо.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПозицияНеНайдена:
+                  value:
+                    detail: Позиция корзины не найдена.
+                  summary: Позиция не найдена
+          description: Блюдо или позиция корзины не найдены (в том числе в другой
+            корзине).
     delete:
       operationId: v1_cart_items_destroy
+      summary: Удалить позицию корзины
       parameters:
       - in: header
         name: X-Cart-Token
@@ -134,10 +227,36 @@ paths:
       - {}
       responses:
         '204':
-          description: Позиция удалена.
+          description: Позиция удалена; тело ответа отсутствует.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПозицияНеНайдена:
+                  value:
+                    detail: Позиция корзины не найдена.
+                  summary: Позиция не найдена
+          description: Блюдо или позиция корзины не найдены (в том числе в другой
+            корзине).
   /api/v1/categories/:
     get:
       operationId: v1_categories_list
+      summary: Активные категории
       tags:
       - v1
       security:
@@ -156,6 +275,7 @@ paths:
   /api/v1/dishes/:
     get:
       operationId: v1_dishes_list
+      summary: Список блюд
       parameters:
       - in: query
         name: category
@@ -166,7 +286,7 @@ paths:
         name: featured
         schema:
           type: boolean
-        description: 'Только рекомендуемые блюда: true/false'
+        description: true/false
       - name: page
         required: false
         in: query
@@ -177,7 +297,7 @@ paths:
         name: search
         schema:
           type: string
-        description: Поиск блюда по названию
+        description: Поиск по названию
       tags:
       - v1
       security:
@@ -191,9 +311,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedDishListList'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НекорректныйFeatured:
+                  value:
+                    featured:
+                    - Некорректное значение. Ожидается true или false.
+                  summary: Некорректный featured
+          description: Некорректный параметр featured или номер страницы.
   /api/v1/dishes/{slug}/:
     get:
       operationId: v1_dishes_retrieve
+      summary: Детали блюда
       parameters:
       - in: path
         name: slug
@@ -213,6 +347,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/DishDetail'
           description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                БлюдоНеНайдено:
+                  value:
+                    detail: No Dish matches the given query.
+                  summary: Блюдо не найдено
+          description: Блюдо не найдено, скрыто или его категория неактивна.
 components:
   schemas:
     BadgeEnum:
@@ -328,13 +474,15 @@ components:
           type: string
           maxLength: 100
         slug:
-          type: string
-          maxLength: 120
-          pattern: ^[-a-zA-Z0-9_]+$
+          oneOf:
+          - type: string
+            maxLength: 120
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
       required:
       - id
       - name
-      - slug
     DishDetail:
       type: object
       properties:
@@ -345,9 +493,12 @@ components:
           type: string
           maxLength: 200
         slug:
-          type: string
-          maxLength: 220
-          pattern: ^[-a-zA-Z0-9_]+$
+          oneOf:
+          - type: string
+            maxLength: 220
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
         short_description:
           type: string
           maxLength: 255
@@ -378,7 +529,6 @@ components:
       - image
       - name
       - price
-      - slug
     DishList:
       type: object
       properties:
@@ -389,9 +539,12 @@ components:
           type: string
           maxLength: 200
         slug:
-          type: string
-          maxLength: 220
-          pattern: ^[-a-zA-Z0-9_]+$
+          oneOf:
+          - type: string
+            maxLength: 220
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
         short_description:
           type: string
           maxLength: 255
@@ -420,7 +573,6 @@ components:
       - image
       - name
       - price
-      - slug
     PaginatedDishListList:
       type: object
       required:
