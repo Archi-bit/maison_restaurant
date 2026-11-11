@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -58,12 +59,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'drf_spectacular',
     'corsheaders',
 
     'apps.catalog',
     'apps.cart',
+    'apps.staff',
 ]
 
 MIDDLEWARE = [
@@ -166,6 +169,22 @@ MAILERS = {
             if DEBUG else 'django.core.mail.backends.smtp.EmailBackend',
         ),
     },
+    'staff_password_reset': {
+        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    },
+}
+
+
+PASSWORD_RESET_TIMEOUT = 1800
+STAFF_PASSWORD_RESET_ENABLED = DEBUG
+STAFF_PASSWORD_RESET_URL = os.getenv(
+    'STAFF_PASSWORD_RESET_URL', 'http://localhost:5173/password-reset/'
+)
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=3),
+    'ROTATE_REFRESH_TOKENS': False,
 }
 
 
@@ -179,7 +198,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MAISON Restaurant API',
-    'DESCRIPTION': 'API каталога и гостевой корзины MAISON',
+    'DESCRIPTION': 'API каталога, гостевой корзины и авторизации сотрудников MAISON',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

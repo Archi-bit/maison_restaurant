@@ -1,100 +1,303 @@
-# MAISON Restaurant — Backend, этап 1
+# MAISON Restaurant
 
-REST API каталога и гостевой корзины. Django 6.1.2, Django REST Framework, PostgreSQL 17, Docker Compose, Gunicorn, Nginx.
+**Учебный проект ресторанного Backend API на Django REST Framework.**
 
-> В этом репозитории находится Backend. Клиентский React-проект разрабатывается отдельно. Второй этап ещё не начат. Это описание не заменяет оригинальные технические задания.
+MAISON Restaurant — серверная часть веб-приложения ресторана. Проект разработан командой начинающих Backend-разработчиков в рамках учебной стажировки. Реализация охватывает первые два этапа: каталог и гостевую корзину, а также заявки на бронирование столов и рабочий интерфейс сотрудников через REST API.
 
-## Структура
+> **Область проекта:** этот репозиторий содержит Backend. Клиентское приложение на React разрабатывается отдельно.
 
-- `backend/apps/catalog/` — категории, блюда, поиск, фильтрация, сортировка и seed-данные.
-- `backend/apps/cart/` — гостевая корзина, токены, позиции и итоговая стоимость.
-- `backend/config/` — Django settings, URLConf и Swagger/OpenAPI.
-- `backend/docker-compose.yml` — локальная инфраструктура (HTTPS Nginx рассчитан на существующие сертификаты).
-- `.github/workflows/backend-tests.yml` — проверки Pull Requests.
+## Возможности
 
-## Локальный запуск на Ubuntu через Docker
+### Этап 1 — каталог и корзина
 
-Из корня репозитория:
+- Просмотр категорий и карточек блюд с изображениями.
+- Поиск блюд, фильтрация по категории и признаку «рекомендуемое», пагинация.
+- Просмотр подробной информации о блюде по `slug`.
+- Гостевая корзина без регистрации: добавление блюд, изменение количества, удаление позиций.
+- Доступ к корзине по заголовку `X-Cart-Token`; расчёт итоговой стоимости в сомах (KGS).
+
+### Этап 2 — бронирования и сотрудники
+
+- Публичная заявка на бронирование без регистрации.
+- Учётные записи сотрудников на базе стандартного Django `User` и модели `EmployeeProfile`.
+- Вход по рабочей почте и паролю, JWT access/refresh, выход и получение своего профиля.
+- Восстановление пароля через стандартные механизмы Django.
+- Ролевой доступ: владелец, администратор ресторана, официант, повар.
+- Создание и редактирование бронирований сотрудниками; назначение стола, подтверждение, прибытие и отмена.
+- Проверки времени посещения, количества гостей, вместимости и занятости стола.
+- История основных изменений бронирования.
+- План зала с состояниями столов на заданные дату и время.
+
+## Технологии
+
+| Компонент | Технология |
+| --- | --- |
+| Язык | Python 3.12 |
+| Backend | Django 6.1.2, Django REST Framework |
+| Авторизация сотрудников | SimpleJWT |
+| База данных | PostgreSQL 17 |
+| API-документация | drf-spectacular / OpenAPI / Swagger UI |
+| Контейнеризация | Docker, Docker Compose |
+| Веб-сервер | Gunicorn, Nginx |
+| Проверки | Django Test Framework, GitHub Actions |
+| Часовой пояс | Asia/Bishkek |
+
+## Структура проекта
+
+```text
+maison_restaurant/
+├── .github/
+│   └── workflows/
+│       └── backend-tests.yml
+├── backend/
+│   ├── apps/
+│   │   ├── catalog/           # Категории и блюда
+│   │   ├── cart/              # Гостевая корзина
+│   │   ├── staff/             # Сотрудники, JWT и права доступа
+│   │   ├── reservations/      # Модели и бизнес-логика бронирований
+│   │   └── reservation_api/   # REST API бронирований и плана зала
+│   ├── config/                # settings.py, urls.py, ASGI/WSGI
+│   ├── nginx/                 # Конфигурация Nginx
+│   ├── .env.example
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   ├── manage.py
+│   └── requirements.txt
+├── docs/                      # Дополнительная документация
+└── README.md
+```
+
+Приложения разделены по ответственности: `staff` управляет сотрудниками и авторизацией, `reservations` — данными и правилами бронирования, `reservation_api` — HTTP-запросами и ответами. Существующие `catalog` и `cart` остаются отдельными приложениями.
+
+## Локальный запуск через Docker
+
+Понадобятся Git и Docker с плагином Docker Compose. Команды ниже выполняются из корня репозитория, если не указано другое.
+
+**1. Клонировать проект и создать файл окружения**
 
 ```bash
-cd backend
+git clone https://github.com/Archi-bit/maison_restaurant.git
+cd maison_restaurant/backend
 cp .env.example .env
 ```
 
-Для `.env` требуется задать локальный `SECRET_KEY`. Его можно сгенерировать командой:
+Откройте `.env` и задайте собственный `SECRET_KEY` и пароль локальной БД. Для генерации ключа:
 
 ```bash
 python3 -c 'import secrets; print(secrets.token_urlsafe(50))'
 ```
 
-Вставить полученную строку после `SECRET_KEY=` в `.env`. Не использовать production-секрет, не коммитить `.env`.
+Минимальный пример локальной конфигурации:
 
-Запустить только БД, чтобы локально не требовались TLS-сертификаты:
-
-```bash
-docker compose config --quiet
-docker compose up -d db
-docker compose run --rm web python manage.py check
-docker compose run --rm web python manage.py migrate --noinput
-docker compose run --rm web python manage.py test --noinput -v 2
+```dotenv
+SECRET_KEY=your-local-secret-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1,testserver
+DB_NAME=maison_dev
+DB_USER=maison_dev
+DB_PASSWORD=your-local-db-password
+DB_HOST=db
+DB_PORT=5432
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+MEDIA_SOURCE=./media
 ```
 
-Образ `web` собирается из `backend/Dockerfile`. Внутри Docker переменная `DB_HOST` устанавливается в `db`. `docker compose run` запускает одноразовый контейнер для проверки; Nginx не запускается.
+`.env` содержит секреты и **не должен попадать в Git**.
 
-Для Swagger нужно запустить локальный Django-сервер отдельно либо создать сертификаты/локальный reverse proxy. Проще через Docker:
+**2. Запустить PostgreSQL**
+
+```bash
+docker compose up -d db
+```
+
+**3. Применить миграции и, при необходимости, добавить демонстрационные данные**
+
+```bash
+docker compose run --rm web python manage.py migrate --noinput
+# Учебные данные каталога (не запускать без проверки на production):
+docker compose run --rm web python manage.py seed_catalog
+# Начальные столы ресторана (идемпотентная команда этапа 2):
+docker compose run --rm web python manage.py seed_restaurant_tables
+```
+
+**4. Запустить локальный Django-сервер**
 
 ```bash
 docker compose run --rm -p 8000:8000 web python manage.py runserver 0.0.0.0:8000
 ```
 
-Открыть `http://localhost:8000/api/swagger/`. Использовать только локально. Внимание: при `SESSION_COOKIE_SECURE = True` вход в Admin по обычному HTTP может зависеть от поведения браузера. Для локального HTTP можно временно установить в локальных настройках `SESSION_COOKIE_SECURE = not DEBUG` и `CSRF_COOKIE_SECURE = not DEBUG`, не ослабляя production.
+После запуска доступны:
 
-## Проверки без Docker
+- Swagger UI: <http://localhost:8000/api/swagger/>
+- OpenAPI: <http://localhost:8000/api/schema/>
+- Django Admin: <http://localhost:8000/admin/>
+- API: `http://localhost:8000/api/v1/`
 
-Требуются Python с установленным `backend/requirements.txt` и отдельная PostgreSQL с реквизитами из `.env`, доступная из Ubuntu по указанному `DB_HOST`.
+**Почему не `docker compose up` для всего проекта?** Текущая конфигурация Nginx рассчитана на HTTPS с уже созданными TLS-сертификатами. Для локального знакомства с API достаточно контейнеров БД и Django, без Nginx и Certbot.
+
+Для использования Django Admin можно создать администратора:
 
 ```bash
-cd backend
-python manage.py check
-python manage.py makemigrations --check --dry-run
-python manage.py migrate
-python manage.py test --noinput -v 2
-python manage.py spectacular --file schema.yaml --validate
+docker compose run --rm web python manage.py createsuperuser
 ```
 
-`manage.py test` создаёт отдельную временную тестовую БД, выполняет тесты и удаляет её. Тестов не следует запускать с production-учётной записью PostgreSQL.
+Учётная запись Django-суперпользователя и роль `owner` в `EmployeeProfile` — разные понятия. Для входа в staff API сотруднику нужен соответствующий профиль.
 
 ## REST API
 
-| Метод | URL | Назначение |
+Базовый путь: `/api/v1/`. Формат запросов и ответов — JSON, если не указано иное.
+
+### Каталог и корзина
+
+| Метод | Маршрут | Назначение |
 | --- | --- | --- |
-| GET | `/api/v1/categories/` | Активные категории |
-| GET | `/api/v1/dishes/` | Блюда: `search`, `category`, `featured`, `page` |
-| GET | `/api/v1/dishes/{slug}/` | Детали блюда |
-| POST | `/api/v1/cart/` | Создание гостевой корзины |
-| GET | `/api/v1/cart/` | Получение корзины по `X-Cart-Token` |
-| POST | `/api/v1/cart/items/` | Добавление блюда |
-| PATCH | `/api/v1/cart/items/{id}/` | Изменение количества |
-| DELETE | `/api/v1/cart/items/{id}/` | Удаление позиции |
+| `GET` | `/api/v1/categories/` | Категории |
+| `GET` | `/api/v1/dishes/` | Блюда, поиск и фильтры |
+| `GET` | `/api/v1/dishes/{slug}/` | Детали блюда |
+| `POST` | `/api/v1/cart/` | Создать корзину |
+| `GET` | `/api/v1/cart/` | Получить корзину |
+| `POST` | `/api/v1/cart/items/` | Добавить позицию |
+| `PATCH` | `/api/v1/cart/items/{id}/` | Изменить количество |
+| `DELETE` | `/api/v1/cart/items/{id}/` | Удалить позицию |
 
-Создать корзину можно без токена; остальные запросы корзины требуют секретный заголовок `X-Cart-Token`. Токен выдаётся один раз при создании корзины. Деньги возвращаются строками с двумя десятичными знаками в KGS; сервер считает суммы по актуальным ценам из БД.
+Корзина не требует регистрации. После `POST /api/v1/cart/` клиент получает токен, который нужно передавать в заголовке `X-Cart-Token` в последующих запросах к корзине.
 
-Swagger: `/api/swagger/`; OpenAPI JSON: `/api/schema/`.
+### Публичное бронирование
 
-## Демонстрационные блюда
+| Метод | Маршрут | Назначение |
+| --- | --- | --- |
+| `POST` | `/api/v1/reservations/` | Создать заявку на бронирование |
 
-`python manage.py seed_catalog` заполняет **учебную** БД восемью блюдами и локальными изображениями-заглушками. Цены и фото в этой команде **не подтверждены макетом Figma**. Команда повторяемая: не заменяет существующие цены и загруженные изображения блюд.
+Пример запроса:
 
-**Не запускать `seed_catalog` на production без анализа состояния данных.** До формальной сдачи сверить цены, описания, фотографии и рекомендации с исходным дизайном. Чек-лист: `docs/catalog_fixtures.md`.
+```bash
+curl -X POST http://localhost:8000/api/v1/reservations/ \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "guest_name": "Тимур Беков",
+    "phone": "+996555010027",
+    "date": "2030-05-15",
+    "start_time": "19:00",
+    "guests_count": 2
+  }'
+```
 
-## Развёртывание
+Дата в примере условная: для успешного создания укажите **будущую** дату. Публичный запрос создаёт заявку со статусом `pending`; гость не может самостоятельно назначить стол или подтвердить бронь.
 
-Рабочий AWS EC2 настроен отдельно от репозитория, согласно владельцу проекта. Этот набор исправлений не заменяет серверные `.env`, Dockerfile, Compose-конфигурации, Certbot или Nginx. Сначала проверить PR и локальную среду; отдельно согласовать production-развёртывание и план отката.
+### Авторизация сотрудников
 
-## Ответственные
+| Метод | Маршрут | Назначение |
+| --- | --- | --- |
+| `POST` | `/api/v1/staff/auth/login/` | Вход сотрудника |
+| `POST` | `/api/v1/staff/auth/refresh/` | Обновление access token |
+| `POST` | `/api/v1/staff/auth/logout/` | Выход и отзыв refresh token |
+| `GET` | `/api/v1/staff/auth/me/` | Текущий профиль |
+| `POST` | `/api/v1/staff/auth/password-reset/` | Запрос на восстановление пароля |
+| `POST` | `/api/v1/staff/auth/password-reset/confirm/` | Установка нового пароля по токену |
 
-- Бексултан: модели Category/Dish, миграции, Admin и seed.
-- Бекзат: каталог API, поиск, фильтрация, Swagger.
-- Арген (Backend Lead): корзина, интеграция, Code Review и объединение изменений.
+Пример входа:
 
-Изменения в `main` — через PR, в PR указывать реально выполненные проверки и известные ограничения.
+```json
+{
+  "work_email": "employee@example.com",
+  "password": "example-password",
+  "remember_me": false
+}
+```
+
+Для защищённых запросов используется заголовок:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+В учебном Junior MVP длительность авторизации ограничена сроками, предусмотренными в `staff`: до 3 дней без `remember_me` и до 30 дней с ним (фиксированный предел от входа, без отслеживания неактивности). Короткоживущий access token обновляется через refresh token. Точные правила и время жизни токенов определяются настройками реализованного Backend.
+
+### Управление бронированиями (для сотрудников)
+
+| Метод | Маршрут | Назначение |
+| --- | --- | --- |
+| `GET` | `/api/v1/staff/reservations/` | Список с фильтрами и поиском |
+| `POST` | `/api/v1/staff/reservations/` | Создание брони сотрудником |
+| `GET` | `/api/v1/staff/reservations/{id}/` | Детали брони |
+| `PATCH` | `/api/v1/staff/reservations/{id}/` | Редактирование разрешённых полей |
+| `POST` | `/api/v1/staff/reservations/{id}/assign-table/` | Назначение или перенос стола |
+| `POST` | `/api/v1/staff/reservations/{id}/confirm/` | Подтверждение |
+| `POST` | `/api/v1/staff/reservations/{id}/arrive/` | Отметка прибытия |
+| `POST` | `/api/v1/staff/reservations/{id}/cancel/` | Отмена |
+| `GET` | `/api/v1/staff/reservations/{id}/history/` | История изменений |
+| `GET` | `/api/v1/staff/tables/` | План зала на дату и время |
+
+Для списка предусмотрены параметры `date`, `status`, `search`, `page` и `page_size`. План зала принимает `date`, `time` и `duration_minutes`.
+
+Полные структуры JSON-запросов, ответов и ошибок доступны в Swagger UI. При интеграции с React используйте фактическую OpenAPI-схему, а не только таблицы этого README.
+
+## Основные правила бронирования
+
+- Рабочее время ресторана для бронирования: **12:00–23:00**, часовой пояс **Asia/Bishkek**.
+- Количество гостей: **от 1 до 6**.
+- Публичная заявка создаётся на **120 минут**; для внутренних броней длительность может задаваться отдельно по правилам API.
+- Начальное состояние заявки — `pending` (ожидает обработки).
+- Для подтверждения бронирования сначала требуется назначить стол.
+- Статусы: `pending` → `confirmed` → `arrived`; из `pending` или `confirmed` возможна отмена (`cancelled`).
+- Стол должен быть активным, вмещать гостей и не иметь пересекающейся активной брони. Отменённая бронь не занимает стол.
+- Начальный план зала включает **12 столов на 40 посадочных мест**.
+- План зала показывает `free`, `reserved` или `occupied` в зависимости от бронирований на выбранный интервал.
+- Основные изменения фиксируются в истории бронирования.
+
+Учебный MVP использует базовые проверки конфликтов и разумные ограничения данных. Наличие полноценной защиты от всех конкурентных запросов следует подтверждать отдельными PostgreSQL-тестами, а не предполагать по одному успешному сценарию.
+
+## Роли и права
+
+| Роль | Доступ |
+| --- | --- |
+| `owner` | Управление бронированиями и сотрудниками в пределах разрешённых интерфейсов |
+| `administrator` | Управление бронированиями и назначением столов через предусмотренный API |
+| `waiter` | Просмотр назначенных ему бронирований и статусов всех столов, без данных чужих гостей |
+| `chef` | Нет доступа к разделу бронирований на втором этапе |
+| Гость | Просмотр каталога, работа с корзиной, отправка публичной заявки |
+
+Авторизация сотрудников не делает гостевые маршруты закрытыми. Роль проверяется на сервере; клиент не может назначить себе права через содержимое запроса.
+
+## Проверки
+
+Из папки `backend/`:
+
+```bash
+docker compose run --rm web python manage.py check
+docker compose run --rm web python manage.py makemigrations --check --dry-run
+docker compose run --rm web python manage.py test --noinput -v 2
+docker compose run --rm web python manage.py spectacular --file /tmp/maison-schema.yaml --validate
+```
+
+В `.github/workflows/backend-tests.yml` настроены автоматические проверки Backend с PostgreSQL при Pull Request и push в `main`. Наличие workflow не означает, что конкретный запуск был успешным: фактический статус следует смотреть в GitHub Actions.
+
+## Развёртывание и конфигурация
+
+Проект рассчитан на Docker Compose с PostgreSQL, Gunicorn и Nginx. Для HTTPS используется Certbot с сертификатами, которые должны быть настроены **отдельно**. Развёртывание на сервер не сводится к локальным командам из этого README.
+
+Домен серверного окружения: <https://maison-restaurant.duckdns.org/>. Доступность новых маршрутов второго этапа зависит от того, опубликована ли соответствующая версия Backend.
+
+Для реальной отправки писем восстановления пароля требуется настроенная почтовая доставка. **В локальном окружении используется Console Email Backend:** письмо отображается в выводе Django, но не отправляется на настоящий email.
+
+Не коммитьте `.env`, пароли, JWT, сертификаты и другие секреты. Перед миграциями рабочей базы данных необходимы отдельная проверка и резервная копия.
+
+## Ограничения учебного проекта
+
+Второй этап не включает онлайн-оплату, заказы на кухню, аналитику продаж, управление сменами, SMS-уведомления, публичную регистрацию сотрудников и полноценную инфраструктуру коммерческого сервиса.
+
+Цель проекта — освоить командную Backend-разработку: модели Django, REST API, разграничение прав, PostgreSQL, тестирование, Git, интеграцию модулей и базовое развёртывание.
+
+## Команда Backend
+
+| Разработчик | Зона ответственности на втором этапе |
+| --- | --- |
+| Арген — Backend Team Lead | `staff`, авторизация, permissions, конфигурация, интеграция и проверки |
+| Бексултан | `reservations`: модели, сервисы, история, план зала |
+| Бекзат | `reservation_api`: serializers, views, endpoints, API-тесты |
+
+Код первого этапа сохраняется, а функциональность второго подключается через новые Django-приложения. Изменения в `main` вносятся через Pull Request после проверки интеграции.
+
+---
+
+**MAISON Restaurant** — учебный командный проект. Backend: этапы 1–2, Junior MVP.
