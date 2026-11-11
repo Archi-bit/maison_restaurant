@@ -1,0 +1,461 @@
+openapi: 3.0.3
+info:
+  title: MAISON Restaurant API
+  version: 1.0.0
+  description: API каталога и гостевой корзины MAISON
+paths:
+  /api/v1/cart/:
+    get:
+      operationId: v1_cart_retrieve
+      parameters:
+      - in: header
+        name: X-Cart-Token
+        schema:
+          type: string
+        description: Секретный токен гостевой корзины
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+          description: ''
+    post:
+      operationId: v1_cart_create
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartCreateResponse'
+          description: ''
+  /api/v1/cart/items/:
+    post:
+      operationId: v1_cart_items_create
+      parameters:
+      - in: header
+        name: X-Cart-Token
+        schema:
+          type: string
+        description: Секретный токен гостевой корзины
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CartItemCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CartItemCreate'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+          description: ''
+  /api/v1/cart/items/{id}/:
+    patch:
+      operationId: v1_cart_items_partial_update
+      parameters:
+      - in: header
+        name: X-Cart-Token
+        schema:
+          type: string
+        description: Секретный токен гостевой корзины
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdate'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+          description: ''
+    delete:
+      operationId: v1_cart_items_destroy
+      parameters:
+      - in: header
+        name: X-Cart-Token
+        schema:
+          type: string
+        description: Секретный токен гостевой корзины
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '204':
+          description: Позиция удалена.
+  /api/v1/categories/:
+    get:
+      operationId: v1_categories_list
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/dishes/:
+    get:
+      operationId: v1_dishes_list
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+        description: Slug категории
+      - in: query
+        name: featured
+        schema:
+          type: boolean
+        description: 'Только рекомендуемые блюда: true/false'
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Поиск блюда по названию
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDishListList'
+          description: ''
+  /api/v1/dishes/{slug}/:
+    get:
+      operationId: v1_dishes_retrieve
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DishDetail'
+          description: ''
+components:
+  schemas:
+    BadgeEnum:
+      enum:
+      - hit
+      - chef
+      - favorite
+      type: string
+      description: |-
+        * `hit` - Хит
+        * `chef` - Шеф рекомендует
+        * `favorite` - Любимый десерт
+    BlankEnum:
+      enum:
+      - ''
+    Cart:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+          readOnly: true
+        items_count:
+          type: integer
+          readOnly: true
+        subtotal:
+          type: string
+          readOnly: true
+        total:
+          type: string
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+      required:
+      - currency
+      - id
+      - items
+      - items_count
+      - subtotal
+      - total
+    CartCreateResponse:
+      type: object
+      properties:
+        cart_token:
+          type: string
+        cart:
+          $ref: '#/components/schemas/Cart'
+      required:
+      - cart
+      - cart_token
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        dish_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        image:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        line_total:
+          type: string
+          readOnly: true
+      required:
+      - dish_id
+      - id
+      - image
+      - line_total
+      - name
+      - quantity
+      - unit_price
+    CartItemCreate:
+      type: object
+      properties:
+        dish_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          maximum: 99
+          minimum: 1
+      required:
+      - dish_id
+      - quantity
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 120
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - name
+      - slug
+    DishDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 220
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_description:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        image:
+          type: string
+          format: uri
+        badge:
+          oneOf:
+          - $ref: '#/components/schemas/BadgeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        is_featured:
+          type: boolean
+        is_available:
+          type: boolean
+        category:
+          allOf:
+          - $ref: '#/components/schemas/Category'
+          readOnly: true
+      required:
+      - category
+      - id
+      - image
+      - name
+      - price
+      - slug
+    DishList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 220
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_description:
+          type: string
+          maxLength: 255
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        image:
+          type: string
+          format: uri
+        badge:
+          oneOf:
+          - $ref: '#/components/schemas/BadgeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        is_featured:
+          type: boolean
+        is_available:
+          type: boolean
+        category:
+          allOf:
+          - $ref: '#/components/schemas/Category'
+          readOnly: true
+      required:
+      - category
+      - id
+      - image
+      - name
+      - price
+      - slug
+    PaginatedDishListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DishList'
+    PatchedCartItemUpdate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          maximum: 99
+          minimum: 1
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
