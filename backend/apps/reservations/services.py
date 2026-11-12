@@ -200,6 +200,17 @@ def create_staff_reservation(*, validated_data, actor) -> Reservation:
         new_status="pending",
         details=f"Создано сотрудником {actor}. Стол: {table_label}",
     )
+
+    if table is not None:
+        ReservationHistory.objects.create(
+            reservation=reservation,
+            actor=actor,
+            action="table_assigned",
+            old_status="pending",
+            new_status="pending",
+            details=f"При создании назначен стол {table.code}.",
+        )
+
     return reservation
 
 
@@ -217,6 +228,16 @@ def update_reservation(*, reservation: Reservation, validated_data: dict, actor)
             "field_not_allowed",
             f"Эти поля нельзя изменить: {', '.join(sorted(forbidden_fields))}.",
         )
+
+    for field in ("guest_name", "phone"):
+        if field in validated_data:
+            value = validated_data[field]
+
+            if value is None or not str(value).strip():
+                raise ReservationBusinessError(
+                    "missing_fields",
+                    f"Поле {field} не может быть пустым.",
+                )
 
     date_val = validated_data.get("date", reservation.date)
     start_time_val = validated_data.get("start_time", reservation.start_time)

@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     'apps.catalog',
     'apps.cart',
     'apps.staff',
+    'phonenumber_field',
+    'apps.reservations',
 ]
 
 MIDDLEWARE = [

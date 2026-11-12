@@ -40,7 +40,7 @@ class ReservationAdmin(admin.ModelAdmin):
 
 @admin.register(ReservationHistory)
 class ReservationHistoryAdmin(admin.ModelAdmin):
-    list_display = ("reservation", "action", "old_status", "new_status", "created_at") # я удалил здесь actor потому что будет ошибка
+    list_display = ("reservation", "actor", "action", "old_status", "new_status", "created_at")
     list_filter = ("action", "created_at")
     search_fields = ("reservation__guest_name", "details")
 
