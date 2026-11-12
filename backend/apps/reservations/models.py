@@ -38,8 +38,8 @@ class Reservation(models.Model):
     status = models.CharField("status", max_length=20, choices=STATUS_CHOSE)
     source = models.CharField("source", max_length=20, choices=SOURCE_CHOSE)
     table = models.ForeignKey(RestaurantTable, on_delete=models.CASCADE, null=True)
-    #responsible_employee = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="responsible_reservations")
-    #created_by = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="created_reservations")
+    responsible_employee = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="responsible_reservations")
+    created_by = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="created_reservations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -54,7 +54,7 @@ class Reservation(models.Model):
 
 class ReservationHistory(models.Model):
     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
-    #actor = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True)
+    actor = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True)
     action = models.CharField(max_length=40)
     old_status = models.CharField("old status", max_length=20, choices=STATUS_CHOSE)
     new_status = models.CharField("new status", max_length=20, choices=STATUS_CHOSE)
