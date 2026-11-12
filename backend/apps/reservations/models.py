@@ -3,7 +3,7 @@ from datetime import datetime, time
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-# Время работы ресторана. Единый источник для моделей, сервисов и CheckConstraint.
+
 OPEN_TIME = time(12, 0)
 CLOSE_TIME = time(23, 0)
 
