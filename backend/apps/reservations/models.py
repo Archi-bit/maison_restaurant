@@ -1,6 +1,6 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 STATUS_CHOSE = (
     ("pending", "Ожидает подтверждения"),
@@ -15,7 +15,8 @@ SOURCE_CHOSE = (
     ("walk_in", "Гость без брони"),
 )
 
-class RestaurantTable (models.Model):
+
+class RestaurantTable(models.Model):
     code = models.CharField("code", max_length=6, unique=True)
     capacity = models.PositiveSmallIntegerField("capacity")
     zone = models.CharField("zone", max_length=50)
@@ -27,6 +28,7 @@ class RestaurantTable (models.Model):
     def __str__(self):
         return self.code
 
+
 class Reservation(models.Model):
     guest_name = models.CharField(max_length=150)
     phone = PhoneNumberField(max_length=20)
@@ -34,12 +36,28 @@ class Reservation(models.Model):
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
-    guests_count = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(6)])
+    guests_count = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(6)]
+    )
     status = models.CharField("status", max_length=20, choices=STATUS_CHOSE)
     source = models.CharField("source", max_length=20, choices=SOURCE_CHOSE)
-    table = models.ForeignKey(RestaurantTable, on_delete=models.CASCADE, null=True)
-    responsible_employee = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="responsible_reservations")
-    created_by = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True, related_name="created_reservations")
+    table = models.ForeignKey(
+        RestaurantTable, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    responsible_employee = models.ForeignKey(
+        "staff.EmployeeProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="responsible_reservations",
+    )
+    created_by = models.ForeignKey(
+        "staff.EmployeeProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_reservations",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -47,14 +65,17 @@ class Reservation(models.Model):
     def number(self):
         if self.pk is None:
             return "—"
-        return f"{self.id:04d}"
+        return f"B-{self.pk:03d}"
 
     def __str__(self):
         return self.guest_name
 
+
 class ReservationHistory(models.Model):
     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
-    actor = models.ForeignKey("staff.EmployeeProfile", on_delete=models.CASCADE, null=True, blank=True)
+    actor = models.ForeignKey(
+        "staff.EmployeeProfile", on_delete=models.SET_NULL, null=True, blank=True
+    )
     action = models.CharField(max_length=40)
     old_status = models.CharField("old status", max_length=20, choices=STATUS_CHOSE)
     new_status = models.CharField("new status", max_length=20, choices=STATUS_CHOSE)
