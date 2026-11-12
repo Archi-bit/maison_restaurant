@@ -2,11 +2,12 @@ openapi: 3.0.3
 info:
   title: MAISON Restaurant API
   version: 1.0.0
-  description: API каталога и гостевой корзины MAISON
+  description: API каталога, гостевой корзины и авторизации сотрудников MAISON
 paths:
   /api/v1/cart/:
     get:
       operationId: v1_cart_retrieve
+      summary: Получить гостевую корзину
       parameters:
       - in: header
         name: X-Cart-Token
@@ -25,8 +26,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cart'
           description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
     post:
       operationId: v1_cart_create
+      summary: Создать гостевую корзину
       tags:
       - v1
       security:
@@ -41,6 +55,7 @@ paths:
   /api/v1/cart/items/:
     post:
       operationId: v1_cart_items_create
+      summary: Добавить блюдо в корзину
       parameters:
       - in: header
         name: X-Cart-Token
@@ -77,9 +92,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cart'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НеверноеКоличество:
+                  value:
+                    quantity:
+                    - Ensure this value is greater than or equal to 1.
+                  summary: Неверное количество
+          description: Неверное количество либо недоступное блюдо.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПозицияНеНайдена:
+                  value:
+                    detail: Позиция корзины не найдена.
+                  summary: Позиция не найдена
+          description: Блюдо или позиция корзины не найдены (в том числе в другой
+            корзине).
   /api/v1/cart/items/{id}/:
     patch:
       operationId: v1_cart_items_partial_update
+      summary: Изменить количество блюда
       parameters:
       - in: header
         name: X-Cart-Token
@@ -114,8 +168,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cart'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НеверноеКоличество:
+                  value:
+                    quantity:
+                    - Ensure this value is greater than or equal to 1.
+                  summary: Неверное количество
+          description: Неверное количество либо недоступное блюдо.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПозицияНеНайдена:
+                  value:
+                    detail: Позиция корзины не найдена.
+                  summary: Позиция не найдена
+          description: Блюдо или позиция корзины не найдены (в том числе в другой
+            корзине).
     delete:
       operationId: v1_cart_items_destroy
+      summary: Удалить позицию корзины
       parameters:
       - in: header
         name: X-Cart-Token
@@ -134,10 +227,36 @@ paths:
       - {}
       responses:
         '204':
-          description: Позиция удалена.
+          description: Позиция удалена; тело ответа отсутствует.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедействительныйТокен:
+                  value:
+                    detail: Недействительный или просроченный токен корзины.
+                  summary: Недействительный токен
+          description: Отсутствующий, неверный или просроченный токен.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПозицияНеНайдена:
+                  value:
+                    detail: Позиция корзины не найдена.
+                  summary: Позиция не найдена
+          description: Блюдо или позиция корзины не найдены (в том числе в другой
+            корзине).
   /api/v1/categories/:
     get:
       operationId: v1_categories_list
+      summary: Активные категории
       tags:
       - v1
       security:
@@ -156,6 +275,7 @@ paths:
   /api/v1/dishes/:
     get:
       operationId: v1_dishes_list
+      summary: Список блюд
       parameters:
       - in: query
         name: category
@@ -166,7 +286,7 @@ paths:
         name: featured
         schema:
           type: boolean
-        description: 'Только рекомендуемые блюда: true/false'
+        description: true/false
       - name: page
         required: false
         in: query
@@ -177,7 +297,7 @@ paths:
         name: search
         schema:
           type: string
-        description: Поиск блюда по названию
+        description: Поиск по названию
       tags:
       - v1
       security:
@@ -191,9 +311,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedDishListList'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НекорректныйFeatured:
+                  value:
+                    featured:
+                    - Некорректное значение. Ожидается true или false.
+                  summary: Некорректный featured
+          description: Некорректный параметр featured или номер страницы.
   /api/v1/dishes/{slug}/:
     get:
       operationId: v1_dishes_retrieve
+      summary: Детали блюда
       parameters:
       - in: path
         name: slug
@@ -212,6 +346,239 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DishDetail'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                БлюдоНеНайдено:
+                  value:
+                    detail: No Dish matches the given query.
+                  summary: Блюдо не найдено
+          description: Блюдо не найдено, скрыто или его категория неактивна.
+  /api/v1/staff/auth/login/:
+    post:
+      operationId: v1_staff_auth_login_create
+      description: 'Фиксированный срок сессии от входа: 3 дня или 30 дней с remember_me.'
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Login'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+  /api/v1/staff/auth/logout/:
+    post:
+      operationId: v1_staff_auth_logout_create
+      description: Отзывает refresh. Выданный access действует до истечения своего
+        срока.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklist'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklist'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklist'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+  /api/v1/staff/auth/me/:
+    get:
+      operationId: v1_staff_auth_me_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeProfile'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+  /api/v1/staff/auth/password-reset/:
+    post:
+      operationId: v1_staff_auth_password_reset_create
+      description: В локальной среде выводит письмо в консоль.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordReset'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordReset'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordReset'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+  /api/v1/staff/auth/password-reset/confirm/:
+    post:
+      operationId: v1_staff_auth_password_reset_confirm_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
+          description: ''
+  /api/v1/staff/auth/refresh/:
+    post:
+      operationId: v1_staff_auth_refresh_create
+      description: Новый access в пределах исходного срока сессии.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refresh'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDetail'
           description: ''
 components:
   schemas:
@@ -328,13 +695,15 @@ components:
           type: string
           maxLength: 100
         slug:
-          type: string
-          maxLength: 120
-          pattern: ^[-a-zA-Z0-9_]+$
+          oneOf:
+          - type: string
+            maxLength: 120
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
       required:
       - id
       - name
-      - slug
     DishDetail:
       type: object
       properties:
@@ -345,9 +714,12 @@ components:
           type: string
           maxLength: 200
         slug:
-          type: string
-          maxLength: 220
-          pattern: ^[-a-zA-Z0-9_]+$
+          oneOf:
+          - type: string
+            maxLength: 220
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
         short_description:
           type: string
           maxLength: 255
@@ -378,7 +750,6 @@ components:
       - image
       - name
       - price
-      - slug
     DishList:
       type: object
       properties:
@@ -389,9 +760,12 @@ components:
           type: string
           maxLength: 200
         slug:
-          type: string
-          maxLength: 220
-          pattern: ^[-a-zA-Z0-9_]+$
+          oneOf:
+          - type: string
+            maxLength: 220
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
         short_description:
           type: string
           maxLength: 255
@@ -420,7 +794,63 @@ components:
       - image
       - name
       - price
-      - slug
+    EmployeeProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        work_email:
+          type: string
+          format: email
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+      required:
+      - full_name
+      - id
+      - phone
+      - role
+      - work_email
+    Login:
+      type: object
+      properties:
+        work_email:
+          type: string
+          format: email
+          writeOnly: true
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+        remember_me:
+          type: boolean
+          writeOnly: true
+          default: false
+        profile:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeProfile'
+          readOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - password
+      - profile
+      - refresh
+      - work_email
     PaginatedDishListList:
       type: object
       required:
@@ -444,6 +874,33 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DishList'
+    PasswordReset:
+      type: object
+      properties:
+        work_email:
+          type: string
+          format: email
+          maxLength: 254
+      required:
+      - work_email
+    PasswordResetConfirm:
+      type: object
+      properties:
+        uid:
+          type: string
+        token:
+          type: string
+        new_password:
+          type: string
+          writeOnly: true
+        new_password_confirm:
+          type: string
+          writeOnly: true
+      required:
+      - new_password
+      - new_password_confirm
+      - token
+      - uid
     PatchedCartItemUpdate:
       type: object
       properties:
@@ -451,6 +908,45 @@ components:
           type: integer
           maximum: 99
           minimum: 1
+    Refresh:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    RoleEnum:
+      enum:
+      - owner
+      - administrator
+      - waiter
+      - chef
+      type: string
+      description: |-
+        * `owner` - Владелец
+        * `administrator` - Администратор
+        * `waiter` - Официант
+        * `chef` - Повар
+    StaffDetail:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    TokenBlacklist:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - refresh
   securitySchemes:
     basicAuth:
       type: http
@@ -459,3 +955,7 @@ components:
       type: apiKey
       in: cookie
       name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
