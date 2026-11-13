@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'apps.staff',
     'phonenumber_field',
     'apps.reservations',
+    'apps.operations',
 ]
 
 MIDDLEWARE = [
@@ -203,7 +204,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MAISON Restaurant API',
-    'DESCRIPTION': 'API каталога, гостевой корзины и авторизации сотрудников MAISON',
+    'DESCRIPTION': 'API каталога, гостевой корзины, авторизации сотрудников и смен MAISON',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
