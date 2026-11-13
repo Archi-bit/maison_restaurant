@@ -2,7 +2,7 @@
 
 **Учебный проект ресторанного Backend API на Django REST Framework.**
 
-MAISON Restaurant — серверная часть веб-приложения ресторана. Проект разработан командой начинающих Backend-разработчиков в рамках учебной стажировки. Первый этап включает каталог и гостевую корзину. В этой ветке подключены учётные записи и авторизация сотрудников второго этапа. Интеграция бронирований ещё предстоит.
+MAISON Restaurant — серверная часть веб-приложения ресторана. В проекте работают каталог, гостевая корзина, авторизация сотрудников и API смен. Модели и сервисы бронирования доступны внутри Django. Для HTTP API бронирований требуется интеграция `reservation_api`.
 
 > **Область проекта:** этот репозиторий содержит Backend. Клиентское приложение на React разрабатывается отдельно.
 
@@ -24,14 +24,21 @@ MAISON Restaurant — серверная часть веб-приложения 
 - Вход по рабочей почте и паролю, JWT access/refresh, выход и получение своего профиля.
 - Восстановление пароля через стандартные механизмы Django.
 - Ролевой доступ: владелец, администратор ресторана, официант, повар.
+- Модели и сервисы столов, бронирований, истории и плана зала в `reservations`.
 
-**После подключения бронирований**
+**После подключения `reservation_api`**
 
 - Публичная заявка на бронирование без регистрации.
 - Создание и редактирование бронирований сотрудниками; назначение стола, подтверждение, прибытие и отмена.
 - Проверки времени посещения, количества гостей, вместимости и занятости стола.
 - История основных изменений бронирования.
 - План зала с состояниями столов на заданные дату и время.
+
+### Этап 3 — операции смены
+
+- Владелец или администратор открывает смену, добавляет сотрудников и закрепляет столы за официантами смены.
+- Активные сотрудники видят текущую смену. Официант видит закреплённые за ним столы, владелец и администратор видят все назначения.
+- Смены, состав и назначения доступны для просмотра в Django Admin владельцу или администратору с соответствующими разрешениями Django.
 
 ## Технологии
 
@@ -58,7 +65,9 @@ maison_restaurant/
 │   ├── apps/
 │   │   ├── catalog/           # Категории и блюда
 │   │   ├── cart/              # Гостевая корзина
-│   │   └── staff/             # Сотрудники, JWT и права доступа
+│   │   ├── staff/             # Сотрудники, JWT и права доступа
+│   │   ├── reservations/      # Столы, модели и сервисы бронирований
+│   │   └── operations/        # Смены, состав и назначения
 │   ├── config/                # settings.py, urls.py, ASGI/WSGI
 │   ├── nginx/                 # Конфигурация Nginx
 │   ├── .env.example
@@ -121,7 +130,7 @@ docker compose run --rm web python manage.py migrate --noinput
 docker compose run --rm web python manage.py seed_catalog
 ```
 
-После подключения `reservations` начальные столы можно загрузить командой `docker compose run --rm web python manage.py seed_restaurant_tables`.
+Начальные столы можно загрузить командой `docker compose run --rm web python manage.py seed_restaurant_tables`. Для проверки назначений создайте в Django Admin активного пользователя и профиль с ролью `waiter`. Используйте идентификаторы профиля и стола из Django Admin.
 
 **4. Запустить локальный Django-сервер**
 
@@ -237,6 +246,36 @@ Authorization: Bearer <access_token>
 
 В учебном Junior MVP длительность авторизации ограничена сроками, предусмотренными в `staff`: до 3 дней без `remember_me` и до 30 дней с ним (фиксированный предел от входа, без отслеживания неактивности). Короткоживущий access token обновляется через refresh token. Точные правила и время жизни токенов определяются настройками реализованного Backend.
 
+### Смены ресторана
+
+Для каждого запроса нужен `Authorization: Bearer <access_token>` после входа через `POST /api/v1/staff/auth/login/`.
+
+| Метод | Маршрут | Роли | Запрос и результат |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/staff/shifts/open/` | `owner`, `administrator` | Пустое тело или `{}`. Возвращает смену, `201` |
+| `GET` | `/api/v1/staff/shifts/current/` | Все активные сотрудники | Объект текущей смены или `{"shift": null}`, `200` |
+| `GET` | `/api/v1/staff/shifts/{id}/employees/` | `owner`, `administrator` | Состав смены, `200` |
+| `POST` | `/api/v1/staff/shifts/{id}/employees/` | `owner`, `administrator` | `{"employee_id": 7}`. Возвращает запись о сотруднике смены, `201` |
+| `PUT` | `/api/v1/staff/shifts/{id}/tables/{table_id}/` | `owner`, `administrator` | `{"waiter_id": 7}`. Возвращает назначение, `201` при создании и `200` при повторе с тем же официантом |
+| `GET` | `/api/v1/staff/shifts/current/tables/` | `owner`, `administrator`, `waiter` | Список назначений, `200`. У официанта список ограничен его столами. Без открытой смены возвращается `[]` |
+
+Для React последовательность выглядит так. Получите access token, откройте смену, возьмите её `id` из ответа, добавьте официанта по ID профиля и назначьте ему стол. Затем обновите список через `GET /api/v1/staff/shifts/current/tables/`. Поля ответов доступны в Swagger.
+
+```bash
+API=http://localhost:8000/api/v1
+curl -X POST "$API/staff/shifts/open/" -H "Authorization: Bearer $ACCESS_TOKEN"
+curl -X POST "$API/staff/shifts/$SHIFT_ID/employees/" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"employee_id": 7}'
+curl -X PUT "$API/staff/shifts/$SHIFT_ID/tables/$TABLE_ID/" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"waiter_id": 7}'
+```
+
+Подставьте значения `ACCESS_TOKEN`, `SHIFT_ID`, `TABLE_ID` и ID профиля вместо `7`. Бизнес-ошибки возвращают `400` с полями `code` и `detail`, например `{"code": "shift_already_open", "detail": "Смена уже открыта."}`. Отсутствующая запись возвращает `404`, отсутствующий или недействительный JWT — `401`, недостаточные права — `403`.
+
+Закрытие смены, переназначение стола и отчёты о продажах ожидают `orders`. Создание заказа, кухня и оплата через HTTP зависят от `order_api`. После интеграции сквозная проверка должна пройти от открытия смены и назначения стола до заказа, кухни, оплаты, закрытия и отражения оплаты в отчёте.
+
 ### Управление бронированиями (для сотрудников)
 
 Эти маршруты также относятся к контракту будущей интеграции.
@@ -292,11 +331,13 @@ Swagger UI показывает маршруты, подключённые в з
 ```bash
 docker compose run --rm web python manage.py check
 docker compose run --rm web python manage.py makemigrations --check --dry-run
+docker compose run --rm web python manage.py migrate --plan
+docker compose run --rm web python manage.py migrate --noinput
 docker compose run --rm web python manage.py test --noinput -v 2
 docker compose run --rm web python manage.py spectacular --file /tmp/maison-schema.yaml --validate
 ```
 
-В `.github/workflows/backend-tests.yml` настроены автоматические проверки Backend с PostgreSQL при Pull Request и push в `main`. Наличие workflow не означает, что конкретный запуск был успешным: фактический статус следует смотреть в GitHub Actions.
+В `.github/workflows/backend-tests.yml` настроены проверки Django, применение миграций, полный набор тестов и проверка схемы OpenAPI на PostgreSQL 17 при Pull Request и push в `main`.
 
 ## Развёртывание и конфигурация
 
@@ -310,7 +351,7 @@ docker compose run --rm web python manage.py spectacular --file /tmp/maison-sche
 
 ## Ограничения учебного проекта
 
-Второй этап не включает онлайн-оплату, заказы на кухню, аналитику продаж, управление сменами, SMS-уведомления, публичную регистрацию сотрудников и полноценную инфраструктуру коммерческого сервиса.
+Онлайн-оплата, SMS-уведомления и публичная регистрация сотрудников за рамками учебного проекта.
 
 Цель проекта — освоить командную Backend-разработку: модели Django, REST API, разграничение прав, PostgreSQL, тестирование, Git, интеграцию модулей и базовое развёртывание.
 
@@ -326,4 +367,4 @@ docker compose run --rm web python manage.py spectacular --file /tmp/maison-sche
 
 ---
 
-**MAISON Restaurant** — учебный командный проект. Backend: этапы 1–2, Junior MVP.
+**MAISON Restaurant** — учебный командный проект. Backend: этапы 1–3, Junior MVP.

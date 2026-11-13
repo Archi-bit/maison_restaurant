@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: MAISON Restaurant API
   version: 1.0.0
-  description: API каталога, гостевой корзины и авторизации сотрудников MAISON
+  description: API каталога, гостевой корзины, авторизации сотрудников и смен MAISON
 paths:
   /api/v1/cart/:
     get:
@@ -260,8 +260,7 @@ paths:
       tags:
       - v1
       security:
-      - cookieAuth: []
-      - basicAuth: []
+      - jwtAuth: []
       - {}
       responses:
         '200':
@@ -301,8 +300,7 @@ paths:
       tags:
       - v1
       security:
-      - cookieAuth: []
-      - basicAuth: []
+      - jwtAuth: []
       - {}
       responses:
         '200':
@@ -337,8 +335,7 @@ paths:
       tags:
       - v1
       security:
-      - cookieAuth: []
-      - basicAuth: []
+      - jwtAuth: []
       - {}
       responses:
         '200':
@@ -580,8 +577,210 @@ paths:
               schema:
                 $ref: '#/components/schemas/StaffDetail'
           description: ''
+  /api/v1/staff/shifts/{id}/employees/:
+    get:
+      operationId: v1_staff_shifts_employees_list
+      summary: Получить состав смены
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShiftEmployee'
+          description: ''
+        '404':
+          description: Смена, сотрудник или стол не найдены.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+    post:
+      operationId: v1_staff_shifts_employees_create
+      summary: Добавить сотрудника в смену
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddShiftEmployee'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddShiftEmployee'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddShiftEmployee'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftEmployee'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '404':
+          description: Смена, сотрудник или стол не найдены.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/shifts/{id}/tables/{table_id}/:
+    put:
+      operationId: v1_staff_shifts_tables_update
+      summary: Закрепить стол за официантом
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: table_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTable'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignTable'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignTable'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTableAssignment'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTableAssignment'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '404':
+          description: Смена, сотрудник или стол не найдены.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/shifts/current/:
+    get:
+      operationId: v1_staff_shifts_current_retrieve
+      summary: Получить текущую смену
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentShift'
+          description: ''
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/shifts/current/tables/:
+    get:
+      operationId: v1_staff_shifts_current_tables_list
+      summary: Получить назначения столов в текущей смене
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShiftTableAssignment'
+          description: ''
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/shifts/open/:
+    post:
+      operationId: v1_staff_shifts_open_create
+      summary: Открыть смену
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
 components:
   schemas:
+    AddShiftEmployee:
+      type: object
+      properties:
+        employee_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+      required:
+      - employee_id
+    AssignTable:
+      type: object
+      properties:
+        waiter_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+      required:
+      - waiter_id
     BadgeEnum:
       enum:
       - hit
@@ -704,6 +903,10 @@ components:
       required:
       - id
       - name
+    CurrentShift:
+      oneOf:
+      - $ref: '#/components/schemas/Shift'
+      - $ref: '#/components/schemas/NoCurrentShift'
     DishDetail:
       type: object
       properties:
@@ -851,6 +1054,16 @@ components:
       - profile
       - refresh
       - work_email
+    NoCurrentShift:
+      type: object
+      properties:
+        shift:
+          type: object
+          nullable: true
+          not:
+            type: object
+      required:
+      - shift
     PaginatedDishListList:
       type: object
       required:
@@ -932,6 +1145,90 @@ components:
         * `administrator` - Администратор
         * `waiter` - Официант
         * `chef` - Повар
+    Shift:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        opened_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        closed_by:
+          type: integer
+          readOnly: true
+          nullable: true
+      required:
+      - closed_at
+      - closed_by
+      - id
+      - opened_at
+      - opened_by
+      - status
+    ShiftEmployee:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        employee:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          type: string
+          readOnly: true
+        added_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - added_at
+      - employee
+      - full_name
+      - id
+      - role
+    ShiftTableAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        table:
+          type: integer
+          readOnly: true
+        table_code:
+          type: string
+          readOnly: true
+        waiter:
+          type: integer
+          readOnly: true
+        assigned_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_at
+      - id
+      - table
+      - table_code
+      - waiter
     StaffDetail:
       type: object
       properties:
@@ -939,6 +1236,14 @@ components:
           type: string
       required:
       - detail
+    StatusEnum:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - Открыта
+        * `closed` - Закрыта
     TokenBlacklist:
       type: object
       properties:
@@ -948,13 +1253,6 @@ components:
       required:
       - refresh
   securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: sessionid
     jwtAuth:
       type: http
       scheme: bearer
