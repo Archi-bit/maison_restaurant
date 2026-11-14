@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'apps.staff',
     'phonenumber_field',
     'apps.reservations',
+    'apps.reservation_api',
     'apps.operations',
 ]
 
