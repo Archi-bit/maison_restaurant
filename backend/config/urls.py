@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/v1/', include('apps.cart.urls')),
     path('api/v1/staff/auth/', include('apps.staff.urls')),
     path('api/v1/', include('apps.operations.urls')),
+    path('api/v1/', include('apps.reservation_api.urls')),
 
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
