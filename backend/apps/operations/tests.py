@@ -119,12 +119,14 @@ class ShiftAPITests(APITestCase):
         url = self.assignment_url(shift.pk, self.table.pk)
         payload = {"waiter_id": self.waiter.pk}
         assigned = self.client.put(url, payload, format="json")
+        original_assigned_at = ShiftTableAssignment.objects.get().assigned_at
         self.assertEqual(assigned.status_code, 201)
         self.assertEqual(assigned.data["table_code"], "T05")
         self.assertEqual(assigned.data["waiter"], self.waiter.pk)
         repeated = self.client.put(url, payload, format="json")
         self.assertEqual(repeated.status_code, 200)
         self.assertEqual(repeated.data, assigned.data)
+        self.assertEqual(ShiftTableAssignment.objects.get().assigned_at, original_assigned_at)
 
         order = Order.objects.create(
             shift=shift, channel="dine_in", table=self.table, waiter=self.waiter
@@ -134,15 +136,20 @@ class ShiftAPITests(APITestCase):
         self.assertEqual(conflict.status_code, 400)
         self.assertEqual(conflict.data["code"], "table_already_assigned")
         self.assertEqual(ShiftTableAssignment.objects.get().waiter_id, self.waiter.pk)
-
+        self.assertEqual(ShiftTableAssignment.objects.get().assigned_at, original_assigned_at)
         order_services.cancel_order(order=order, reason="Ошибка ввода", actor=self.administrator)
-        Order.objects.create(shift=shift, channel="dine_in", table=self.other_table)
-        reassigned = self.client.put(url, new_payload, format="json")
+        Order.objects.create( shift=shift, channel="dine_in", table=self.other_table)
+        new_assigned_at = original_assigned_at + timedelta(minutes=10)
+        with patch("apps.operations.services.timezone.now", return_value=new_assigned_at):
+            reassigned = self.client.put(url, new_payload, format="json")
         self.assertEqual(reassigned.status_code, 200)
         self.assertEqual(reassigned.data["id"], assigned.data["id"])
         self.assertEqual(ShiftTableAssignment.objects.get().waiter_id, self.other_waiter.pk)
         order.refresh_from_db()
         self.assertEqual(order.waiter_id, self.waiter.pk)
+        assignment = ShiftTableAssignment.objects.get()
+        self.assertEqual(assignment.assigned_at, new_assigned_at)
+        self.assertEqual(datetime.fromisoformat(reassigned.data["assigned_at"]), new_assigned_at)
 
     def test_reservation_order_payment_and_shift_closing(self):
         self.authenticate(self.owner.user)
@@ -430,19 +437,37 @@ class SalesReportAPITests(APITestCase):
             {"revenue": "375.00", "paid_orders_count": 2, "average_check": "187.50", "currency": "KGS"},
         )
 
-    def test_popular_dishes_group_snapshots_and_channels_include_empty_channel(self):
+    def test_popular_dishes_group_by_dish_and_channels_include_empty_channel(self):
+        Dish.objects.filter(pk=self.dish.pk).update(
+            name="Стейк фирменный"
+        )
         popular = self.get_report("popular-dishes", self.period)
         self.assertEqual(popular.status_code, 200)
         self.assertEqual(popular.json(), [
-            {"dish_id": self.dish.pk, "dish_name": "Стейк", "quantity": 4},
-            {"dish_id": self.dish.pk, "dish_name": "Стейк по-другому", "quantity": 1},
+            {
+                "dish_id": self.dish.pk,
+                "dish_name": "Стейк фирменный",
+                "quantity": 5,
+            },
         ])
         channels = self.get_report("sales-channels", self.period)
         self.assertEqual(channels.status_code, 200)
         self.assertEqual(channels.json(), [
-            {"channel": "dine_in", "paid_orders_count": 1, "revenue": "300.00"},
-            {"channel": "takeaway", "paid_orders_count": 1, "revenue": "75.00"},
-            {"channel": "delivery", "paid_orders_count": 0, "revenue": "0.00"},
+            {
+                "channel": "dine_in",
+                "paid_orders_count": 1,
+                "revenue": "300.00",
+            },
+            {
+                "channel": "takeaway",
+                "paid_orders_count": 1,
+                "revenue": "75.00",
+            },
+            {
+                "channel": "delivery",
+                "paid_orders_count": 0,
+                "revenue": "0.00",
+            },
         ])
 
     def test_compare_uses_previous_period_of_equal_length(self):

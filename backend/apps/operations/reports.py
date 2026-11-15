@@ -32,12 +32,21 @@ def sales_summary(orders):
 
 
 def popular_dishes(orders):
-    return (
+    dishes = (
         OrderItem.objects.filter(order__in=orders)
-        .values("dish_id", "dish_name")
+        .values("dish_id", "dish__name")
         .annotate(quantity=Sum("quantity"))
-        .order_by("-quantity", "dish_id", "dish_name")[:10]
+        .order_by("-quantity", "dish_id")[:10]
     )
+
+    return [
+        {
+            "dish_id": dish["dish_id"],
+            "dish_name": dish["dish__name"],
+            "quantity": dish["quantity"],
+        }
+        for dish in dishes
+    ]
 
 
 def sales_channels(orders):

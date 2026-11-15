@@ -96,7 +96,8 @@ def assign_shift_table(*, shift, table, waiter, actor):
                 "table_already_assigned", "На столе есть незавершённый заказ."
             )
         assignment.waiter = waiter
-        assignment.save(update_fields=["waiter"])
+        assignment.assigned_at = timezone.now()
+        assignment.save(update_fields=["waiter", "assigned_at"])
     return assignment, False
 
 
