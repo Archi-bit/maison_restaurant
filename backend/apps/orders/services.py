@@ -61,6 +61,13 @@ def create_order(*, validated_data, actor):
     actor: EmployeeProfile
     """
     _validate_actor(actor)
+
+    if actor.role not in ("owner", "administrator", "waiter"):
+        raise OrderBusinessError(
+            "access_denied",
+            "У сотрудника нет прав на создание заказа.",
+        )
+
     shift = _get_open_shift()
 
     channel = validated_data.get("channel")

@@ -1,7 +1,7 @@
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import (extend_schema_field, extend_schema_serializer)
 from rest_framework import serializers
-
 from .models import RestaurantShift, ShiftEmployee, ShiftTableAssignment
+
 
 
 class ShiftSerializer(serializers.ModelSerializer):
@@ -43,5 +43,6 @@ class AddShiftEmployeeSerializer(serializers.Serializer):
     employee_id = serializers.IntegerField(min_value=1, max_value=2**63 - 1)
 
 
+@extend_schema_serializer(component_name="ShiftAssignTable")
 class AssignTableSerializer(serializers.Serializer):
     waiter_id = serializers.IntegerField(min_value=1, max_value=2**63 - 1)

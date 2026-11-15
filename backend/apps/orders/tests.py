@@ -549,3 +549,16 @@ class OrdersTestCase(TestCase):
         with self.assertRaises(OrderBusinessError) as ctx:
             cancel_order(order=order2, reason="Ошибка", actor=self.admin)
         self.assertEqual(ctx.exception.code, "already_paid")
+
+    def test_chef_cannot_create_order(self):
+        with self.assertRaises(OrderBusinessError) as ctx:
+            create_order(
+                validated_data={
+                    "channel": "dine_in",
+                    "reservation_id": self.reservation.pk,
+                },
+                actor=self.chef,
+            )
+
+        self.assertEqual(ctx.exception.code, "access_denied")
+        self.assertFalse(Order.objects.exists())
