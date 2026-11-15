@@ -420,3 +420,31 @@ def get_hall_plan(*, date=None, time=None, duration_minutes=None) -> dict:
             "status": status,
         })
     return hall_plan
+
+
+@transaction.atomic
+def complete_visit(*, reservation: Reservation, actor) -> Reservation:
+    """
+    Завершить визит: arrived → completed.
+
+    Разрешено только если связанный Order (если есть) в статусе closed или cancelled.
+    """
+    reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
+    if reservation.status != "arrived":
+        raise ReservationBusinessError(
+            "invalid_status", "Завершить визит можно только для брони в статусе arrived."
+        )
+
+    # Проверка связанных заказов
+    # Избегаем циклического импорта
+    from apps.orders.models import Order
+
+    related_orders = Order.objects.filter(reservation=reservation).exclude(
+        status__in=("closed", "cancelled")
+    )
+    if related_orders.exists():
+        raise ReservationBusinessError(
+            "active_order", "Сначала завершите заказ."
+        )
+
+    return _save_status(reservation, actor, "completed", f"Визит завершён сотрудником {actor}")
