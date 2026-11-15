@@ -5,10 +5,10 @@ from django.utils import timezone
 
 from apps.catalog.models import Category, Dish
 from apps.staff.models import EmployeeProfile
-from apps.reservations.models import Reservation, RestaurantTable
+from apps.reservations.models import Reservation, ReservationHistory, RestaurantTable
 from apps.reservations.services import complete_visit, get_hall_plan, ReservationBusinessError
 from apps.operations.models import RestaurantShift, ShiftTableAssignment
-from .models import Order, OrderItem, OrderHistory
+from .models import Order, OrderHistory
 from .services import (
     OrderBusinessError,
     create_order,
@@ -134,6 +134,20 @@ class OrdersTestCase(TestCase):
         history = OrderHistory.objects.filter(order=order, action="created")
         self.assertTrue(history.exists())
 
+    def test_create_dine_in_rejects_inactive_table(self):
+        self.table.is_active = False
+        self.table.save(update_fields=["is_active"])
+
+        with self.assertRaises(OrderBusinessError) as ctx:
+            create_order(
+                validated_data={"channel": "dine_in", "reservation_id": self.reservation.pk},
+                actor=self.waiter,
+            )
+
+        self.assertEqual(ctx.exception.code, "table_inactive")
+        self.assertFalse(Order.objects.exists())
+        self.assertFalse(OrderHistory.objects.exists())
+
     def test_without_shift(self):
         """Попытка создать заказ без открытой смены."""
         self.shift.status = "closed"
@@ -165,10 +179,12 @@ class OrdersTestCase(TestCase):
             validated_data={"channel": "dine_in", "reservation_id": self.reservation.pk},
             actor=self.waiter,
         )
-        item = add_order_item(
+        order = add_order_item(
             order=order, dish=self.dish_hot, quantity=1, note="", actor=self.waiter
         )
+        item = order.items.get(dish=self.dish_hot, note="")
         self.assertEqual(item.unit_price, Decimal("1890.00"))
+        self.assertEqual(item.station, "hot")
 
         # Меняем цену блюда
         self.dish_hot.price = Decimal("1990.00")
@@ -177,6 +193,90 @@ class OrdersTestCase(TestCase):
         # Перечитываем позицию
         item.refresh_from_db()
         self.assertEqual(item.unit_price, Decimal("1890.00"))
+
+    def test_item_services_return_order_with_current_items_and_total(self):
+        order = create_order(validated_data={"channel": "takeaway"}, actor=self.admin)
+
+        updated_order = add_order_item(
+            order=order, dish=self.dish_hot.pk, quantity=1, note="Без соли", actor=self.admin
+        )
+        self.assertEqual(updated_order, order)
+        self.assertEqual(updated_order.total, Decimal("1890.00"))
+        updated_order = add_order_item(
+            order=updated_order, dish=self.dish_hot, quantity=2, note="", actor=self.admin
+        )
+        item = updated_order.items.get(dish=self.dish_hot, note="Без соли")
+
+        updated_order = update_order_item(
+            item=item, quantity=3, note="Соль отдельно", actor=self.admin
+        )
+        self.assertEqual(updated_order, order)
+        self.assertEqual(updated_order.total, Decimal("9450.00"))
+        self.assertEqual(updated_order.items.get(pk=item.pk).note, "Соль отдельно")
+
+        updated_order = remove_order_item(item=item, actor=self.admin)
+        self.assertEqual(updated_order, order)
+        self.assertEqual(updated_order.total, Decimal("3780.00"))
+        self.assertEqual(updated_order.items.get(dish=self.dish_hot, note="").quantity, 2)
+        self.assertEqual(
+            list(updated_order.history.order_by("pk").values_list("action", flat=True)),
+            ["created", "item_added", "item_added", "item_updated", "item_removed"],
+        )
+
+    def test_add_item_rejects_deleted_dish(self):
+        order = create_order(validated_data={"channel": "takeaway"}, actor=self.admin)
+        Dish.objects.filter(pk=self.dish_hot.pk).delete()
+
+        for dish in (self.dish_hot.pk, self.dish_hot):
+            with self.subTest(dish=dish):
+                with self.assertRaises(OrderBusinessError) as ctx:
+                    add_order_item(
+                        order=order, dish=dish, quantity=1, note="", actor=self.admin
+                    )
+                self.assertEqual(ctx.exception.code, "dish_not_found")
+
+        self.assertFalse(order.items.exists())
+        self.assertEqual(order.history.count(), 1)
+
+    def test_item_services_reject_deleted_or_reassigned_items(self):
+        order = create_order(validated_data={"channel": "takeaway"}, actor=self.admin)
+        other_order = create_order(validated_data={"channel": "delivery"}, actor=self.admin)
+        order = add_order_item(
+            order=order, dish=self.dish_hot, quantity=1, note="", actor=self.admin
+        )
+        order = add_order_item(
+            order=order, dish=self.dish_cold, quantity=1, note="", actor=self.admin
+        )
+        deleted_item = order.items.get(dish=self.dish_hot)
+        reassigned_item = order.items.get(dish=self.dish_cold)
+        order.items.filter(pk=deleted_item.pk).delete()
+        order.items.filter(pk=reassigned_item.pk).update(order=other_order)
+
+        item_changes = ((update_order_item, {"quantity": 2}), (remove_order_item, {}))
+        for item in (deleted_item, reassigned_item):
+            for change_item, fields in item_changes:
+                with self.subTest(item=item.pk, service=change_item.__name__):
+                    with self.assertRaises(OrderBusinessError) as ctx:
+                        change_item(item=item, actor=self.admin, **fields)
+                    self.assertEqual(ctx.exception.code, "item_not_found")
+
+        self.assertFalse(order.items.exists())
+        self.assertEqual(other_order.items.get(pk=reassigned_item.pk).quantity, 1)
+        self.assertEqual(order.history.count(), 3)
+        self.assertEqual(other_order.history.count(), 1)
+
+    def test_services_reject_deleted_order(self):
+        order = create_order(validated_data={"channel": "takeaway"}, actor=self.admin)
+        Order.objects.filter(pk=order.pk).delete()
+
+        with self.assertRaises(OrderBusinessError) as ctx:
+            add_order_item(order=order, dish=self.dish_hot, quantity=1, note="", actor=self.admin)
+        self.assertEqual(ctx.exception.code, "order_not_found")
+
+        with self.assertRaises(OrderBusinessError) as ctx:
+            send_to_kitchen(order=order, actor=self.admin)
+        self.assertEqual(ctx.exception.code, "order_not_found")
+        self.assertFalse(OrderHistory.objects.exists())
 
     def test_quantity_edges(self):
         """Граничные значения quantity."""
@@ -221,9 +321,10 @@ class OrdersTestCase(TestCase):
             validated_data={"channel": "dine_in", "reservation_id": self.reservation.pk},
             actor=self.waiter,
         )
-        item = add_order_item(
+        order = add_order_item(
             order=order, dish=self.dish_hot, quantity=1, note="", actor=self.waiter
         )
+        item = order.items.get(dish=self.dish_hot, note="")
         send_to_kitchen(order=order, actor=self.waiter)
 
         # Попытка изменить
@@ -354,11 +455,23 @@ class OrdersTestCase(TestCase):
         with self.assertRaises(ReservationBusinessError) as ctx:
             complete_visit(reservation=self.reservation, actor=self.admin)
         self.assertEqual(ctx.exception.code, "active_order")
+        self.reservation.refresh_from_db()
+        self.assertEqual(self.reservation.status, "arrived")
+        self.assertFalse(ReservationHistory.objects.filter(reservation=self.reservation).exists())
 
         # После закрытия заказа
         close_order(order=order, actor=self.waiter)
         reservation = complete_visit(reservation=self.reservation, actor=self.admin)
         self.assertEqual(reservation.status, "completed")
+        with self.assertRaises(ReservationBusinessError) as ctx:
+            complete_visit(reservation=self.reservation, actor=self.admin)
+        self.assertEqual(ctx.exception.code, "invalid_status")
+
+        history = ReservationHistory.objects.get(reservation=reservation)
+        self.assertEqual(
+            (history.action, history.old_status, history.new_status, history.actor),
+            ("completed", "arrived", "completed", self.admin),
+        )
 
     def test_get_hall_plan_after_completed(self):
         """План зала: completed не занимает стол."""
@@ -427,11 +540,11 @@ class OrdersTestCase(TestCase):
             actor=self.admin,
         )
         add_order_item(order=order2, dish=self.dish_cold, quantity=1, note="", actor=self.admin)
-        send_to_kitchen(order=order2, actor=self.admin)
-        
+        order2 = send_to_kitchen(order=order2, actor=self.admin)
+
         # Принудительно установим is_paid=True в статусе new (для теста)
         order2.is_paid = True
-        order2.save()
+        order2.save(update_fields=["is_paid"])
 
         with self.assertRaises(OrderBusinessError) as ctx:
             cancel_order(order=order2, reason="Ошибка", actor=self.admin)

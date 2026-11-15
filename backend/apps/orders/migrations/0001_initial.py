@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('catalog', '0003_alter_category_slug_alter_dish_slug'),
+        ('catalog', '0002_auto_slugs'),
         ('operations', '0001_initial'),
         ('reservations', '0002_reservation_relations'),
         ('staff', '0001_initial'),

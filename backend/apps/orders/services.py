@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -6,7 +7,8 @@ from apps.catalog.models import Dish
 from apps.operations.models import RestaurantShift, ShiftTableAssignment
 from apps.reservations.models import Reservation
 from apps.staff.models import EmployeeProfile
-from .models import Order, OrderItem, OrderHistory
+
+from .models import Order, OrderHistory, OrderItem
 
 
 class OrderBusinessError(Exception):
@@ -34,11 +36,27 @@ def _get_open_shift():
         raise OrderBusinessError("no_open_shift", "Нет открытой смены.") from None
 
 
+def _lock_order(order_id):
+    try:
+        return Order.objects.select_for_update().get(pk=order_id)
+    except Order.DoesNotExist:
+        raise OrderBusinessError("order_not_found", "Заказ не найден.") from None
+
+
+def _lock_order_item(order, item_id):
+    try:
+        return order.items.select_for_update().get(pk=item_id)
+    except OrderItem.DoesNotExist:
+        raise OrderBusinessError(
+            "item_not_found", "Позиция не найдена в этом заказе."
+        ) from None
+
+
 @transaction.atomic
 def create_order(*, validated_data, actor):
     """
     Создать заказ в статусе draft.
-    
+
     validated_data: dict с ключами channel, reservation_id (опц.), note (опц.)
     actor: EmployeeProfile
     """
@@ -58,7 +76,7 @@ def create_order(*, validated_data, actor):
     if channel == "dine_in":
         if not reservation_id:
             raise OrderBusinessError("reservation_required", "Для dine_in требуется reservation_id.")
-        
+
         try:
             reservation = Reservation.objects.select_for_update().get(pk=reservation_id)
         except Reservation.DoesNotExist:
@@ -67,10 +85,11 @@ def create_order(*, validated_data, actor):
         if reservation.status != "arrived":
             raise OrderBusinessError("reservation_not_arrived", "Гость еще не прибыл (статус не arrived).")
 
-        if not reservation.table:
-            raise OrderBusinessError("table_unassigned", "У брони нет назначенного стола.")
-
         table = reservation.table
+        if table is None:
+            raise OrderBusinessError("table_unassigned", "У брони нет назначенного стола.")
+        if not table.is_active:
+            raise OrderBusinessError("table_inactive", "Стол неактивен.")
 
         # Проверка дубликата заказа для этой брони
         if Order.objects.filter(reservation=reservation).exists():
@@ -121,10 +140,10 @@ def create_order(*, validated_data, actor):
 
 
 @transaction.atomic
-def add_order_item(*, order, dish, quantity, note, actor):
+def add_order_item(*, order, dish, quantity, note, actor) -> Order:
     """
     Добавить позицию в заказ (только draft).
-    
+
     order: Order
     dish: Dish или pk
     quantity: int (1-99)
@@ -132,7 +151,7 @@ def add_order_item(*, order, dish, quantity, note, actor):
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "draft":
         raise OrderBusinessError("invalid_status", "Добавление позиций возможно только в статусе draft.")
@@ -145,16 +164,15 @@ def add_order_item(*, order, dish, quantity, note, actor):
     if note and len(note) > 255:
         raise OrderBusinessError("invalid_note", "Примечание не должно превышать 255 символов.")
 
-    # Получить блюдо
-    if isinstance(dish, int):
-        dish_id = dish
-        try:
-            dish = Dish.objects.select_related("category").get(pk=dish_id)
-        except Dish.DoesNotExist:
-            raise OrderBusinessError("dish_not_found", "Блюдо не найдено.") from None
-    else:
-        # Перечитать для актуальности
-        dish = Dish.objects.select_related("category").get(pk=dish.pk)
+    dish_id = dish if isinstance(dish, int) else dish.pk
+    try:
+        dish = (
+            Dish.objects.select_related("category")
+            .select_for_update(of=("self",))
+            .get(pk=dish_id)
+        )
+    except Dish.DoesNotExist:
+        raise OrderBusinessError("dish_not_found", "Блюдо не найдено.") from None
 
     # Проверка доступности
     if not dish.is_active or not dish.is_available or not dish.category.is_active:
@@ -168,7 +186,7 @@ def add_order_item(*, order, dish, quantity, note, actor):
     station = "hot" if dish.category.slug == "hot" else "cold"
 
     # Создание позиции
-    item = OrderItem.objects.create(
+    OrderItem.objects.create(
         order=order,
         dish=dish,
         dish_name=dish_name,
@@ -188,14 +206,14 @@ def add_order_item(*, order, dish, quantity, note, actor):
         details=f"Добавлено: {dish_name} x{quantity}",
     )
 
-    return item
+    return order
 
 
 @transaction.atomic
-def update_order_item(*, item, quantity=None, note=None, actor):
+def update_order_item(*, item, quantity=None, note=None, actor) -> Order:
     """
     Обновить позицию заказа (только draft).
-    
+
     item: OrderItem
     quantity: int или None
     note: str или None
@@ -203,13 +221,11 @@ def update_order_item(*, item, quantity=None, note=None, actor):
     """
     _validate_actor(actor)
 
-    # Блокировка родительского Order
-    order = Order.objects.select_for_update().get(pk=item.order_id)
+    order = _lock_order(item.order_id)
     if order.status != "draft":
         raise OrderBusinessError("invalid_status", "Изменение позиций возможно только в статусе draft.")
 
-    # Перечитать item
-    item = OrderItem.objects.get(pk=item.pk)
+    item = _lock_order_item(order, item.pk)
 
     if quantity is None and note is None:
         raise OrderBusinessError("empty_update", "Не указано ни одно поле для обновления.")
@@ -228,7 +244,7 @@ def update_order_item(*, item, quantity=None, note=None, actor):
         item.note = note
         changes.append("примечание обновлено")
 
-    item.save()
+    item.save(update_fields=["quantity", "note"])
 
     # История
     OrderHistory.objects.create(
@@ -240,28 +256,24 @@ def update_order_item(*, item, quantity=None, note=None, actor):
         details=f"Изменено: {item.dish_name} ({', '.join(changes)})",
     )
 
-    return item
+    return order
 
 
 @transaction.atomic
-def remove_order_item(*, item, actor):
+def remove_order_item(*, item, actor) -> Order:
     """
     Удалить позицию из заказа (только draft).
-    
+
     item: OrderItem
     actor: EmployeeProfile
     """
     _validate_actor(actor)
 
-    # Блокировка родительского Order
-    order = Order.objects.select_for_update().get(pk=item.order_id)
+    order = _lock_order(item.order_id)
     if order.status != "draft":
         raise OrderBusinessError("invalid_status", "Удаление позиций возможно только в статусе draft.")
 
-    # Проверка принадлежности
-    if item.order_id != order.id:
-        raise OrderBusinessError("item_not_found", "Позиция не принадлежит этому заказу.")
-
+    item = _lock_order_item(order, item.pk)
     dish_name = item.dish_name
     item.delete()
 
@@ -275,17 +287,19 @@ def remove_order_item(*, item, actor):
         details=f"Удалено: {dish_name}",
     )
 
+    return order
+
 
 @transaction.atomic
 def send_to_kitchen(*, order, actor):
     """
     Отправить заказ на кухню: draft → new.
-    
+
     order: Order
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "draft":
         raise OrderBusinessError("invalid_status", "Отправить на кухню можно только заказ в статусе draft.")
@@ -313,12 +327,12 @@ def send_to_kitchen(*, order, actor):
 def start_preparing(*, order, actor):
     """
     Начать приготовление: new → preparing.
-    
+
     order: Order
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "new":
         raise OrderBusinessError("invalid_status", "Начать приготовление можно только из статуса new.")
@@ -342,12 +356,12 @@ def start_preparing(*, order, actor):
 def mark_ready(*, order, actor):
     """
     Отметить готовность: preparing → ready.
-    
+
     order: Order
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "preparing":
         raise OrderBusinessError("invalid_status", "Отметить готовым можно только из статуса preparing.")
@@ -371,12 +385,12 @@ def mark_ready(*, order, actor):
 def mark_served(*, order, actor):
     """
     Отметить подачу: ready → served.
-    
+
     order: Order
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "ready":
         raise OrderBusinessError("invalid_status", "Отметить поданным можно только из статуса ready.")
@@ -400,13 +414,13 @@ def mark_served(*, order, actor):
 def mark_paid(*, order, payment_method, actor):
     """
     Отметить оплату (только served, is_paid=False).
-    
+
     order: Order
     payment_method: str (cash/card)
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "served":
         raise OrderBusinessError("invalid_status", "Оплатить можно только заказ в статусе served.")
@@ -444,12 +458,12 @@ def mark_paid(*, order, payment_method, actor):
 def close_order(*, order, actor):
     """
     Закрыть заказ: served + is_paid=True → closed.
-    
+
     order: Order
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status != "served":
         raise OrderBusinessError("invalid_status", "Закрыть можно только заказ в статусе served.")
@@ -477,13 +491,13 @@ def close_order(*, order, actor):
 def cancel_order(*, order, reason, actor):
     """
     Отменить заказ: draft/new → cancelled.
-    
+
     order: Order
     reason: str
     actor: EmployeeProfile
     """
     _validate_actor(actor)
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = _lock_order(order.pk)
 
     if order.status not in ("draft", "new"):
         raise OrderBusinessError("invalid_status", "Отменить можно только заказ в статусе draft или new.")

@@ -426,7 +426,7 @@ def get_hall_plan(*, date=None, time=None, duration_minutes=None) -> dict:
 def complete_visit(*, reservation: Reservation, actor) -> Reservation:
     """
     Завершить визит: arrived → completed.
-    
+
     Разрешено только если связанный Order (если есть) в статусе closed или cancelled.
     """
     reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
