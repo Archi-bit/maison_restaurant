@@ -47,8 +47,8 @@ services:
       - ${MEDIA_SOURCE:-./media}:/app/media:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
-  depends_on:
-    - web
+    depends_on:
+      - web
 
   certbot:
     image: certbot/certbot:latest
