@@ -356,6 +356,39 @@ paths:
                     detail: No Dish matches the given query.
                   summary: Блюдо не найдено
           description: Блюдо не найдено, скрыто или его категория неактивна.
+  /api/v1/reservations/:
+    post:
+      operationId: v1_reservations_create
+      description: Отправить публичную заявку на бронирование.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicReservationCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PublicReservationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PublicReservationCreate'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicReservationResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
   /api/v1/staff/auth/login/:
     post:
       operationId: v1_staff_auth_login_create
@@ -577,6 +610,481 @@ paths:
               schema:
                 $ref: '#/components/schemas/StaffDetail'
           description: ''
+  /api/v1/staff/reports/channels/:
+    get:
+      operationId: v1_staff_reports_channels_list
+      summary: Продажи по каналам заказа
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Первый день периода.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Последний день периода включительно.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalesChannel'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/reports/compare/:
+    get:
+      operationId: v1_staff_reports_compare_retrieve
+      summary: Сравнить выручку с предыдущим периодом
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Первый день периода.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Последний день периода включительно.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesComparison'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/reports/popular-dishes/:
+    get:
+      operationId: v1_staff_reports_popular_dishes_list
+      summary: Десять самых продаваемых блюд
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Первый день периода.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Последний день периода включительно.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopularDish'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/reports/sales.csv:
+    get:
+      operationId: v1_staff_reports_sales_csv_retrieve
+      summary: Скачать продажи в CSV
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Первый день периода.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Последний день периода включительно.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            text/csv:
+              schema:
+                type: string
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/reports/summary/:
+    get:
+      operationId: v1_staff_reports_summary_retrieve
+      summary: Выручка, число оплаченных заказов и средний чек
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Первый день периода.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Последний день периода включительно.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesSummary'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/reservations/:
+    get:
+      operationId: staff_reservations_list
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Дата брони
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Номер страницы
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Размер страницы (до 100)
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Имя или телефон
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Статус брони
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationPage'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+    post:
+      operationId: v1_staff_reservations_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffReservationCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffReservationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffReservationCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/:
+    get:
+      operationId: staff_reservations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+    patch:
+      operationId: v1_staff_reservations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffReservationUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffReservationUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffReservationUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/arrive/:
+    post:
+      operationId: v1_staff_reservations_arrive_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/assign-table/:
+    post:
+      operationId: v1_staff_reservations_assign_table_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTable'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignTable'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignTable'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/cancel/:
+    post:
+      operationId: v1_staff_reservations_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/confirm/:
+    post:
+      operationId: v1_staff_reservations_confirm_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/history/:
+    get:
+      operationId: v1_staff_reservations_history_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationHistory'
+          description: ''
+  /api/v1/staff/shifts/{id}/close/:
+    post:
+      operationId: v1_staff_shifts_close_create
+      summary: Закрыть смену
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+          description: ''
+        '400':
+          description: Некорректные данные или нарушено правило операции.
+        '404':
+          description: Смена, сотрудник или стол не найдены.
+        '401':
+          description: Требуется действующий JWT.
+        '403':
+          description: У сотрудника нет прав на эту операцию.
   /api/v1/staff/shifts/{id}/employees/:
     get:
       operationId: v1_staff_shifts_employees_list
@@ -649,7 +1157,7 @@ paths:
   /api/v1/staff/shifts/{id}/tables/{table_id}/:
     put:
       operationId: v1_staff_shifts_tables_update
-      summary: Закрепить стол за официантом
+      summary: Закрепить стол или сменить официанта
       parameters:
       - in: path
         name: id
@@ -667,13 +1175,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssignTable'
+              $ref: '#/components/schemas/ShiftAssignTable'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AssignTable'
+              $ref: '#/components/schemas/ShiftAssignTable'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AssignTable'
+              $ref: '#/components/schemas/ShiftAssignTable'
         required: true
       security:
       - jwtAuth: []
@@ -759,6 +1267,42 @@ paths:
           description: Требуется действующий JWT.
         '403':
           description: У сотрудника нет прав на эту операцию.
+  /api/v1/staff/tables/:
+    get:
+      operationId: v1_staff_tables_retrieve
+      description: Безопасный план зала без телефонов и заметок гостей.
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: duration_minutes
+        schema:
+          type: integer
+      - in: query
+        name: time
+        schema:
+          type: string
+          format: time
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HallPlanResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
 components:
   schemas:
     AddShiftEmployee:
@@ -771,16 +1315,24 @@ components:
           format: int64
       required:
       - employee_id
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+        detail:
+          type: string
+      required:
+      - code
+      - detail
     AssignTable:
       type: object
       properties:
-        waiter_id:
+        table_id:
           type: integer
-          maximum: 9223372036854775807
           minimum: 1
-          format: int64
       required:
-      - waiter_id
+      - table_id
     BadgeEnum:
       enum:
       - hit
@@ -903,6 +1455,11 @@ components:
       required:
       - id
       - name
+    CurrencyEnum:
+      enum:
+      - KGS
+      type: string
+      description: '* `KGS` - KGS'
     CurrentShift:
       oneOf:
       - $ref: '#/components/schemas/Shift'
@@ -1023,6 +1580,89 @@ components:
       - phone
       - role
       - work_email
+    EmployeeSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        work_email:
+          type: string
+          format: email
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+      required:
+      - full_name
+      - id
+      - phone
+      - role
+      - work_email
+    HallPlanResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          format: time
+        duration_minutes:
+          type: integer
+        tables:
+          type: array
+          items:
+            $ref: '#/components/schemas/HallPlanTable'
+      required:
+      - date
+      - duration_minutes
+      - tables
+      - time
+    HallPlanTable:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        capacity:
+          type: integer
+        zone:
+          type: string
+        is_active:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/HallPlanTableStatusEnum'
+        reservation:
+          type: object
+          additionalProperties: {}
+          nullable: true
+      required:
+      - capacity
+      - code
+      - id
+      - is_active
+      - reservation
+      - status
+      - zone
+    HallPlanTableStatusEnum:
+      enum:
+      - free
+      - reserved
+      - occupied
+      type: string
+      description: |-
+        * `free` - free
+        * `reserved` - reserved
+        * `occupied` - occupied
     Login:
       type: object
       properties:
@@ -1121,6 +1761,89 @@ components:
           type: integer
           maximum: 99
           minimum: 1
+    PatchedStaffReservationUpdate:
+      type: object
+      properties:
+        guest_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        guest_note:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        guests_count:
+          type: integer
+          maximum: 6
+          minimum: 1
+        duration_minutes:
+          type: integer
+          maximum: 360
+          minimum: 30
+    PopularDish:
+      type: object
+      properties:
+        dish_id:
+          type: integer
+        dish_name:
+          type: string
+        quantity:
+          type: integer
+      required:
+      - dish_id
+      - dish_name
+      - quantity
+    PublicReservationCreate:
+      type: object
+      properties:
+        guest_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        guests_count:
+          type: integer
+          maximum: 6
+          minimum: 1
+        guest_note:
+          type: string
+          nullable: true
+      required:
+      - date
+      - guest_name
+      - guests_count
+      - phone
+      - start_time
+    PublicReservationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        reservation_number:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+      required:
+      - id
+      - message
+      - reservation_number
+      - status
     Refresh:
       type: object
       properties:
@@ -1133,6 +1856,65 @@ components:
       required:
       - access
       - refresh
+    ReservationHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        action:
+          type: string
+          readOnly: true
+        old_status:
+          type: string
+          readOnly: true
+        new_status:
+          type: string
+          readOnly: true
+        details:
+          type: string
+          readOnly: true
+          title: Detail
+        actor:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeSummary'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - actor
+      - created_at
+      - details
+      - id
+      - new_status
+      - old_status
+    RestaurantTable:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        capacity:
+          type: integer
+          readOnly: true
+        zone:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - capacity
+      - code
+      - id
+      - is_active
+      - zone
     RoleEnum:
       enum:
       - owner
@@ -1145,6 +1927,59 @@ components:
         * `administrator` - Администратор
         * `waiter` - Официант
         * `chef` - Повар
+    SalesChannel:
+      type: object
+      properties:
+        channel:
+          type: string
+        paid_orders_count:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+      required:
+      - channel
+      - paid_orders_count
+      - revenue
+    SalesComparison:
+      type: object
+      properties:
+        current_revenue:
+          type: string
+          format: decimal
+        previous_revenue:
+          type: string
+          format: decimal
+        difference:
+          type: string
+          format: decimal
+        percent_change:
+          type: string
+          format: decimal
+          nullable: true
+      required:
+      - current_revenue
+      - difference
+      - percent_change
+      - previous_revenue
+    SalesSummary:
+      type: object
+      properties:
+        revenue:
+          type: string
+          format: decimal
+        paid_orders_count:
+          type: integer
+        average_check:
+          type: string
+          format: decimal
+        currency:
+          $ref: '#/components/schemas/CurrencyEnum'
+      required:
+      - average_check
+      - currency
+      - paid_orders_count
+      - revenue
     Shift:
       type: object
       properties:
@@ -1153,7 +1988,7 @@ components:
           readOnly: true
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/ShiftStatusEnum'
           readOnly: true
         opened_at:
           type: string
@@ -1179,6 +2014,16 @@ components:
       - opened_at
       - opened_by
       - status
+    ShiftAssignTable:
+      type: object
+      properties:
+        waiter_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+      required:
+      - waiter_id
     ShiftEmployee:
       type: object
       properties:
@@ -1204,6 +2049,14 @@ components:
       - full_name
       - id
       - role
+    ShiftStatusEnum:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - Открыта
+        * `closed` - Закрыта
     ShiftTableAssignment:
       type: object
       properties:
@@ -1229,6 +2082,14 @@ components:
       - table
       - table_code
       - waiter
+    SourceEnum:
+      enum:
+      - phone
+      - walk_in
+      type: string
+      description: |-
+        * `phone` - phone
+        * `walk_in` - walk_in
     StaffDetail:
       type: object
       properties:
@@ -1236,14 +2097,202 @@ components:
           type: string
       required:
       - detail
-    StatusEnum:
-      enum:
-      - open
-      - closed
-      type: string
-      description: |-
-        * `open` - Открыта
-        * `closed` - Закрыта
+    StaffReservationCreate:
+      type: object
+      properties:
+        guest_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        guests_count:
+          type: integer
+          maximum: 6
+          minimum: 1
+        guest_note:
+          type: string
+          nullable: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          default: phone
+        duration_minutes:
+          type: integer
+          maximum: 360
+          minimum: 30
+        table_id:
+          type: integer
+          nullable: true
+      required:
+      - date
+      - guest_name
+      - guests_count
+      - phone
+      - start_time
+    StaffReservationDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reservation_number:
+          type: string
+          readOnly: true
+        guest_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        start_time:
+          type: string
+          format: time
+          readOnly: true
+        end_time:
+          type: string
+          format: time
+          readOnly: true
+        guests_count:
+          type: integer
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+        table:
+          allOf:
+          - $ref: '#/components/schemas/RestaurantTable'
+          readOnly: true
+        guest_note:
+          type: string
+          readOnly: true
+          nullable: true
+        responsible_employee:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeSummary'
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/EmployeeSummary'
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationHistory'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - date
+      - end_time
+      - guest_name
+      - guest_note
+      - guests_count
+      - history
+      - id
+      - phone
+      - reservation_number
+      - responsible_employee
+      - source
+      - start_time
+      - status
+      - table
+      - updated_at
+    StaffReservationList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reservation_number:
+          type: string
+          readOnly: true
+        guest_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        start_time:
+          type: string
+          format: time
+          readOnly: true
+        end_time:
+          type: string
+          format: time
+          readOnly: true
+        guests_count:
+          type: integer
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+        table:
+          allOf:
+          - $ref: '#/components/schemas/RestaurantTable'
+          readOnly: true
+      required:
+      - date
+      - end_time
+      - guest_name
+      - guests_count
+      - id
+      - phone
+      - reservation_number
+      - source
+      - start_time
+      - status
+      - table
+    StaffReservationPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffReservationList'
+      required:
+      - count
+      - next
+      - previous
+      - results
     TokenBlacklist:
       type: object
       properties:

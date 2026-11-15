@@ -29,9 +29,11 @@ def _validate_actor(actor):
 
 
 def _get_open_shift():
-    """Получить текущую открытую смену."""
+    # Закрытие смены и переназначение стола используют ту же блокировку.
     try:
-        return RestaurantShift.objects.get(status="open")
+        return RestaurantShift.objects.select_for_update().get(
+            status=RestaurantShift.Status.OPEN
+        )
     except RestaurantShift.DoesNotExist:
         raise OrderBusinessError("no_open_shift", "Нет открытой смены.") from None
 
