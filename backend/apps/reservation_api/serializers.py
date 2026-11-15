@@ -166,6 +166,9 @@ class StaffReservationListSerializer(serializers.ModelSerializer):
 
 
 class StaffReservationDetailSerializer(StaffReservationListSerializer):
+    status = serializers.ChoiceField(
+        choices=Reservation._meta.get_field("status").choices, read_only=True
+    )
     responsible_employee = EmployeeSummarySerializer(read_only=True)
     created_by = EmployeeSummarySerializer(read_only=True)
     history = serializers.SerializerMethodField()

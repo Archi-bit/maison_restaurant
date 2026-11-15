@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: MAISON Restaurant API
   version: 1.0.0
-  description: API каталога, гостевой корзины, авторизации сотрудников и смен MAISON
+  description: API каталога, корзины, сотрудников, бронирований, смен и заказов MAISON
 paths:
   /api/v1/cart/:
     get:
@@ -610,6 +610,842 @@ paths:
               schema:
                 $ref: '#/components/schemas/StaffDetail'
           description: ''
+  /api/v1/staff/kitchen/orders/:
+    get:
+      operationId: v1_staff_kitchen_orders_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: station
+        schema:
+          enum:
+          - hot
+          - cold
+          type: string
+          minLength: 1
+        description: |-
+          * `hot` - Горячий цех
+          * `cold` - Холодный цех
+      - in: query
+        name: status
+        schema:
+          enum:
+          - new
+          - preparing
+          - ready
+          type: string
+          minLength: 1
+        description: |-
+          * `new` - new
+          * `preparing` - preparing
+          * `ready` - ready
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedKitchenOrderList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+  /api/v1/staff/orders/:
+    get:
+      operationId: v1_staff_orders_list
+      parameters:
+      - in: query
+        name: channel
+        schema:
+          enum:
+          - dine_in
+          - takeaway
+          - delivery
+          type: string
+          minLength: 1
+        description: |-
+          * `dine_in` - В зале
+          * `takeaway` - С собой
+          * `delivery` - Доставка
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - new
+          - preparing
+          - ready
+          - served
+          - closed
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Черновик
+          * `new` - Новый для кухни
+          * `preparing` - Готовится
+          * `ready` - Готов
+          * `served` - Подан
+          * `closed` - Закрыт
+          * `cancelled` - Отменён
+      - in: query
+        name: table_id
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrderListList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+    post:
+      operationId: v1_staff_orders_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+            examples:
+              ЗаказВЗале:
+                value:
+                  channel: dine_in
+                  reservation_id: 27
+                  note: Подать вместе
+                summary: Заказ в зале
+              ЗаказССобой:
+                value:
+                  channel: takeaway
+                  note: Упаковать отдельно
+                summary: Заказ с собой
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+  /api/v1/staff/orders/{id}/:
+    get:
+      operationId: v1_staff_orders_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+  /api/v1/staff/orders/{id}/cancel/:
+    post:
+      operationId: v1_staff_orders_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCancel'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCancel'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCancel'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/close/:
+    post:
+      operationId: v1_staff_orders_close_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/items/:
+    post:
+      operationId: v1_staff_orders_items_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItemCreate'
+            examples:
+              ДобавитьДвеПорции:
+                value:
+                  dish_id: 1
+                  quantity: 2
+                  note: Без орехов
+                summary: Добавить две порции
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderItemCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderItemCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/items/{item_id}/:
+    patch:
+      operationId: v1_staff_orders_items_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: item_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderItemUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderItemUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderItemUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+    delete:
+      operationId: v1_staff_orders_items_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: item_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/pay/:
+    post:
+      operationId: v1_staff_orders_pay_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderPay'
+            examples:
+              ОплатаНаличными:
+                value:
+                  method: cash
+                summary: Оплата наличными
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderPay'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderPay'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПовторнаяОплата:
+                  value:
+                    code: already_paid
+                    detail: Заказ уже оплачен.
+                  summary: Повторная оплата
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/preparing/:
+    post:
+      operationId: v1_staff_orders_preparing_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KitchenOrder'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/ready/:
+    post:
+      operationId: v1_staff_orders_ready_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KitchenOrder'
+              examples:
+                ЗаказГотов:
+                  value:
+                    id: 42
+                    number: №0042
+                    table_code: T05
+                    channel: dine_in
+                    created_at: '2026-11-12T19:18:00+06:00'
+                    status: ready
+                    items:
+                    - dish_name: Стейк
+                      quantity: 2
+                      station: hot
+                      note: ''
+                  summary: Заказ готов
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                НедопустимоеСостояниеЗаказа:
+                  value:
+                    code: invalid_status
+                    detail: Отметить готовым можно только из статуса preparing.
+                  summary: Недопустимое состояние заказа
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/send/:
+    post:
+      operationId: v1_staff_orders_send_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+  /api/v1/staff/orders/{id}/serve/:
+    post:
+      operationId: v1_staff_orders_serve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
   /api/v1/staff/reports/channels/:
     get:
       operationId: v1_staff_reports_channels_list
@@ -813,6 +1649,12 @@ paths:
         name: status
         schema:
           type: string
+          enum:
+          - arrived
+          - cancelled
+          - completed
+          - confirmed
+          - pending
         description: Статус брони
       tags:
       - v1
@@ -1007,6 +1849,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+          description: ''
+  /api/v1/staff/reservations/{id}/complete/:
+    post:
+      operationId: v1_staff_reservations_complete_create
+      description: Завершить визит после прибытия гостя и завершения заказа.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
           description: ''
   /api/v1/staff/reservations/{id}/confirm/:
     post:
@@ -1303,8 +2193,104 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
           description: ''
+  /api/v1/staff/waiter/orders/:
+    get:
+      operationId: v1_staff_waiter_orders_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - new
+          - preparing
+          - ready
+          - served
+          - closed
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Черновик
+          * `new` - Новый для кухни
+          * `preparing` - Готовится
+          * `ready` - Готов
+          * `served` - Подан
+          * `closed` - Закрыт
+          * `cancelled` - Отменён
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrderListList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Ошибки входных полей или бизнес-ошибка с полями code и detail.
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Требуется действительный JWT.
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: У сотрудника нет доступа к действию.
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Запись отсутствует или недоступна.
 components:
   schemas:
+    ActionEnum:
+      enum:
+      - created
+      - item_added
+      - item_updated
+      - item_removed
+      - sent_to_kitchen
+      - preparing
+      - ready
+      - served
+      - paid
+      - closed
+      - cancelled
+      type: string
+      description: |-
+        * `created` - Создан
+        * `item_added` - Позиция добавлена
+        * `item_updated` - Позиция изменена
+        * `item_removed` - Позиция удалена
+        * `sent_to_kitchen` - Отправлен на кухню
+        * `preparing` - Готовится
+        * `ready` - Готов
+        * `served` - Подан
+        * `paid` - Оплачен
+        * `closed` - Закрыт
+        * `cancelled` - Отменён
     AddShiftEmployee:
       type: object
       properties:
@@ -1455,6 +2441,16 @@ components:
       required:
       - id
       - name
+    ChannelEnum:
+      enum:
+      - dine_in
+      - takeaway
+      - delivery
+      type: string
+      description: |-
+        * `dine_in` - В зале
+        * `takeaway` - С собой
+        * `delivery` - Доставка
     CurrencyEnum:
       enum:
       - KGS
@@ -1663,6 +2659,75 @@ components:
         * `free` - free
         * `reserved` - reserved
         * `occupied` - occupied
+    KitchenOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        table_code:
+          type: string
+          readOnly: true
+          nullable: true
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/KitchenOrderStatusEnum'
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/KitchenOrderItem'
+          readOnly: true
+      required:
+      - channel
+      - created_at
+      - id
+      - items
+      - number
+      - status
+      - table_code
+    KitchenOrderItem:
+      type: object
+      properties:
+        dish_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+        station:
+          allOf:
+          - $ref: '#/components/schemas/StationEnum'
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+      required:
+      - dish_name
+      - note
+      - quantity
+      - station
+    KitchenOrderStatusEnum:
+      enum:
+      - new
+      - preparing
+      - ready
+      type: string
+      description: |-
+        * `new` - new
+        * `preparing` - preparing
+        * `ready` - ready
     Login:
       type: object
       properties:
@@ -1704,6 +2769,327 @@ components:
             type: object
       required:
       - shift
+    OrderCancel:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+      - reason
+    OrderCreate:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/ChannelEnum'
+        reservation_id:
+          type: integer
+          minimum: 1
+        note:
+          type: string
+      required:
+      - channel
+    OrderDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          readOnly: true
+        table_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        table_code:
+          type: string
+          readOnly: true
+          nullable: true
+        waiter:
+          allOf:
+          - $ref: '#/components/schemas/OrderWaiter'
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/OrderStatusEnum'
+          readOnly: true
+        is_paid:
+          type: boolean
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        reservation_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        shift_id:
+          type: integer
+          readOnly: true
+        created_by_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        note:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemRead'
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderHistory'
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          readOnly: true
+        currency:
+          allOf:
+          - $ref: '#/components/schemas/CurrencyEnum'
+          readOnly: true
+          default: KGS
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        paid_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        paid_by_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - channel
+      - closed_at
+      - created_at
+      - created_by_id
+      - currency
+      - history
+      - id
+      - is_paid
+      - items
+      - note
+      - number
+      - paid_at
+      - paid_by_id
+      - payment_method
+      - reservation_id
+      - shift_id
+      - status
+      - subtotal
+      - table_code
+      - table_id
+      - total
+      - updated_at
+      - url
+      - waiter
+    OrderHistory:
+      type: object
+      properties:
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          readOnly: true
+        actor:
+          type: string
+          readOnly: true
+          nullable: true
+        old_status:
+          type: string
+          readOnly: true
+        new_status:
+          type: string
+          readOnly: true
+        details:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - actor
+      - created_at
+      - details
+      - new_status
+      - old_status
+    OrderItemCreate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          maximum: 99
+          minimum: 1
+        note:
+          type: string
+          maxLength: 255
+        dish_id:
+          type: integer
+          minimum: 1
+      required:
+      - dish_id
+      - quantity
+    OrderItemRead:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        dish_id:
+          type: integer
+          readOnly: true
+        dish_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        station:
+          allOf:
+          - $ref: '#/components/schemas/StationEnum'
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+      required:
+      - dish_id
+      - dish_name
+      - id
+      - line_total
+      - note
+      - quantity
+      - station
+      - unit_price
+    OrderList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          readOnly: true
+        table_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        table_code:
+          type: string
+          readOnly: true
+          nullable: true
+        waiter:
+          allOf:
+          - $ref: '#/components/schemas/OrderWaiter'
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/OrderStatusEnum'
+          readOnly: true
+        is_paid:
+          type: boolean
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - channel
+      - created_at
+      - id
+      - is_paid
+      - number
+      - status
+      - table_code
+      - table_id
+      - total
+      - waiter
+    OrderPay:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+      required:
+      - method
+    OrderStatusEnum:
+      enum:
+      - draft
+      - new
+      - preparing
+      - ready
+      - served
+      - closed
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Черновик
+        * `new` - Новый для кухни
+        * `preparing` - Готовится
+        * `ready` - Готов
+        * `served` - Подан
+        * `closed` - Закрыт
+        * `cancelled` - Отменён
+    OrderWaiter:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+      required:
+      - full_name
+      - id
     PaginatedDishListList:
       type: object
       required:
@@ -1727,6 +3113,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DishList'
+    PaginatedKitchenOrderList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/KitchenOrder'
+    PaginatedOrderListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderList'
     PasswordReset:
       type: object
       properties:
@@ -1761,6 +3193,16 @@ components:
           type: integer
           maximum: 99
           minimum: 1
+    PatchedOrderItemUpdate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          maximum: 99
+          minimum: 1
+        note:
+          type: string
+          maxLength: 255
     PatchedStaffReservationUpdate:
       type: object
       properties:
@@ -1787,6 +3229,14 @@ components:
           type: integer
           maximum: 360
           minimum: 30
+    PaymentMethodEnum:
+      enum:
+      - cash
+      - card
+      type: string
+      description: |-
+        * `cash` - Наличные
+        * `card` - Карта
     PopularDish:
       type: object
       properties:
@@ -2167,7 +3617,8 @@ components:
           type: integer
           readOnly: true
         status:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/StaffReservationDetailStatusEnum'
           readOnly: true
         source:
           type: string
@@ -2219,6 +3670,20 @@ components:
       - status
       - table
       - updated_at
+    StaffReservationDetailStatusEnum:
+      enum:
+      - pending
+      - confirmed
+      - arrived
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `pending` - Ожидает подтверждения
+        * `confirmed` - Подтверждена
+        * `arrived` - Гость пришёл
+        * `completed` - Визит завершён
+        * `cancelled` - Отменена
     StaffReservationList:
       type: object
       properties:
@@ -2293,6 +3758,14 @@ components:
       - next
       - previous
       - results
+    StationEnum:
+      enum:
+      - hot
+      - cold
+      type: string
+      description: |-
+        * `hot` - Горячий цех
+        * `cold` - Холодный цех
     TokenBlacklist:
       type: object
       properties:
