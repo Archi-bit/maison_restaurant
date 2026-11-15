@@ -4,6 +4,7 @@ from .views import (
     ArriveReservationView,
     AssignTableView,
     CancelReservationView,
+    CompleteReservationView,
     ConfirmReservationView,
     HallPlanView,
     PublicReservationCreateView,
@@ -39,6 +40,11 @@ urlpatterns = [
         "staff/reservations/<int:id>/arrive/",
         ArriveReservationView.as_view(),
         name="staff-reservation-arrive",
+    ),
+    path(
+        "staff/reservations/<int:id>/complete/",
+        CompleteReservationView.as_view(),
+        name="staff-reservation-complete",
     ),
     path(
         "staff/reservations/<int:id>/cancel/",

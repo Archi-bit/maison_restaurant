@@ -1,5 +1,6 @@
 from datetime import time
 
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
@@ -7,7 +8,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serial
 from rest_framework import serializers, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,6 +17,7 @@ from apps.reservations.services import (
     ReservationBusinessError,
     assign_table,
     cancel_reservation,
+    complete_visit,
     confirm_reservation,
     create_public_reservation,
     create_staff_reservation,
@@ -28,6 +30,7 @@ from apps.staff.permissions import (
     HasEmployeeProfile,
     IsAssignedWaiter,
     IsOwnerOrAdministrator,
+    get_employee_profile,
 )
 from .serializers import (
     ApiErrorSerializer,
@@ -132,7 +135,10 @@ class StaffReservationListCreateView(GenericAPIView):
         operation_id="staff_reservations_list",
         parameters=[
             OpenApiParameter("date", OpenApiTypes.DATE, description="Дата брони"),
-            OpenApiParameter("status", OpenApiTypes.STR, description="Статус брони"),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, description="Статус брони",
+                enum=list(StaffReservationListQuerySerializer().fields["status"].choices),
+            ),
             OpenApiParameter("search", OpenApiTypes.STR, description="Имя или телефон"),
             OpenApiParameter("page", OpenApiTypes.INT, description="Номер страницы"),
             OpenApiParameter("page_size", OpenApiTypes.INT, description="Размер страницы (до 100)"),
@@ -246,10 +252,13 @@ class ReservationActionView(APIView):
     def get_permissions(self):
         return _write_permissions()
 
+    def get_queryset(self):
+        return _reservation_queryset(_employee(self.request))
+
     def post(self, request, id):
         serializer = NoPayloadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        reservation = _reservation_queryset(_employee(request)).filter(
+        reservation = self.get_queryset().filter(
             pk=id
         ).first()
         if reservation is None:
@@ -294,6 +303,41 @@ class CancelReservationView(ReservationActionView):
         request=NoPayloadSerializer,
         responses={200: StaffReservationDetailSerializer, 400: ApiErrorSerializer},
     )
+    def post(self, request, id):
+        return super().post(request, id)
+
+
+class IsReservationWaiter(BasePermission):
+    def has_permission(self, request, view):
+        employee = get_employee_profile(request.user)
+        return employee is not None and employee.role == EmployeeProfile.Role.WAITER
+
+
+class CompleteReservationView(ReservationActionView):
+    service = staticmethod(complete_visit)
+
+    def get_permissions(self):
+        return [
+            IsAuthenticated(),
+            HasEmployeeProfile(),
+            (IsOwnerOrAdministrator | IsReservationWaiter)(),
+        ]
+
+    def get_queryset(self):
+        return super().get_queryset().select_for_update(of=("self",))
+
+    @extend_schema(
+        request=NoPayloadSerializer,
+        responses={
+            200: StaffReservationDetailSerializer,
+            400: ApiErrorSerializer,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+        description="Завершить визит после прибытия гостя и завершения заказа.",
+    )
+    @transaction.atomic
     def post(self, request, id):
         return super().post(request, id)
 

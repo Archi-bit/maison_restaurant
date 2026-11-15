@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'apps.reservation_api',
     'apps.operations',
     'apps.orders',
+    'apps.order_api',
 ]
 
 MIDDLEWARE = [
@@ -206,9 +207,13 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MAISON Restaurant API',
-    'DESCRIPTION': 'API каталога, гостевой корзины, авторизации сотрудников и смен MAISON',
+    'DESCRIPTION': 'API каталога, корзины, сотрудников, бронирований, смен и заказов MAISON',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'ENUM_NAME_OVERRIDES': {
+        'OrderStatusEnum': 'apps.orders.models.Order.STATUS_CHOICES',
+        'PaymentMethodEnum': 'apps.orders.models.Order.PAYMENT_METHOD_CHOICES',
+    },
 }
 
 
