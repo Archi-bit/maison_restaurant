@@ -1,5 +1,7 @@
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
+from apps.orders.models import Order
 from apps.staff.models import EmployeeProfile
 
 from .models import RestaurantShift, ShiftEmployee, ShiftTableAssignment
@@ -34,6 +36,24 @@ def _lock_open_shift(shift):
     if locked_shift.status != RestaurantShift.Status.OPEN:
         raise OperationBusinessError("shift_closed", "Смена закрыта.")
     return locked_shift
+
+
+def _active_shift_orders(shift):
+    return Order.objects.filter(shift=shift).exclude(status__in=("closed", "cancelled"))
+
+
+@transaction.atomic
+def close_shift(*, shift, actor):
+    shift = _lock_open_shift(shift)
+    if _active_shift_orders(shift).exists():
+        raise OperationBusinessError(
+            "active_orders", "Сначала завершите или отмените заказы смены."
+        )
+    shift.status = RestaurantShift.Status.CLOSED
+    shift.closed_at = timezone.now()
+    shift.closed_by = actor
+    shift.save(update_fields=["status", "closed_at", "closed_by"])
+    return shift
 
 
 @transaction.atomic
@@ -71,9 +91,13 @@ def assign_shift_table(*, shift, table, waiter, actor):
         )
         return assignment, True
     if assignment.waiter_id != waiter.pk:
-        raise OperationBusinessError(
-            "table_already_assigned", "Стол уже закреплён за другим официантом."
-        )
+        if _active_shift_orders(shift).filter(table=table).exists():
+            raise OperationBusinessError(
+                "table_already_assigned", "На столе есть незавершённый заказ."
+            )
+        assignment.waiter = waiter
+        assignment.assigned_at = timezone.now()
+        assignment.save(update_fields=["waiter", "assigned_at"])
     return assignment, False
 
 
